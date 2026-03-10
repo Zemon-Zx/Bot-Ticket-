@@ -62,7 +62,7 @@ client.on('interactionCreate', async interaction => {
                 .setTitle('🎫 ศูนย์ช่วยเหลือ / ติดต่อสอบถาม')
                 .setDescription('หากมีข้อสงสัย แจ้งปัญหา หรือต้องการติดต่อทีมงาน\nสามารถกดปุ่ม **"เปิด Ticket"** ด้านล่างได้เลยนะคะ เดี๋ยวระบบจะสร้างห้องส่วนตัวให้ค่ะ ✨')
                 .setColor('#FFB6C1')
-                .setFooter({ text: 'ระบบดูแลโดยปายเองค่ะ 💖' });
+                .setFooter({ text: 'เจ้าของ ซีม่อน ผู้ร่วมพัฒนา ปาย' });
 
             // สร้างปุ่มกดเปิด Ticket
             const button = new ActionRowBuilder()
