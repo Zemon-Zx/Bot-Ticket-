@@ -80,7 +80,7 @@
             animation: blink-effect 1.5s infinite ease-in-out;
         }
 
-        /* ลูกเล่นปุ่ม Discord กระพริบเรืองแสง */
+        /* ลูกเล่นปุ่ม Discord กระพริบเรืองแสง โทนดำ-แดง */
         .discord-btn {
             display: inline-flex;
             align-items: center;
@@ -88,28 +88,35 @@
             gap: 10px;
             margin-top: 18px;
             padding: 10px 25px;
-            background-color: #5865F2; /* สีเอกลักษณ์ของดิสคอร์ด */
-            color: white;
+            background-color: #1a0000; /* พื้นหลังปุ่มสีดำอมแดงนิดๆ */
+            color: #ff3333; /* ตัวหนังสือสีแดง */
             text-decoration: none;
             border-radius: 25px;
             font-weight: 600;
             font-size: 15px;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, background-color 0.3s;
             animation: discord-pulse 1.5s infinite;
-            border: 2px solid #7289da;
+            border: 2px solid #cc0000; /* ขอบปุ่มสีแดง */
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
         }
         .discord-btn:hover {
-            transform: scale(1.05); /* เวลากดหรือเอาเมาส์ชี้จะขยายขึ้นนิดนึงค่ะ */
+            transform: scale(1.05);
+            background-color: #330000; /* เวลากดสีจะสว่างขึ้นนิดหน่อย */
+            color: white;
         }
         .discord-btn svg {
             width: 22px;
             height: 22px;
+            fill: #ff3333; /* โลโก้ดิสคอร์ดสีแดง */
+            transition: fill 0.3s;
+        }
+        .discord-btn:hover svg {
             fill: white;
         }
         @keyframes discord-pulse {
-            0% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0.8); }
-            70% { box-shadow: 0 0 15px 12px rgba(88, 101, 242, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.8); }
+            70% { box-shadow: 0 0 15px 12px rgba(255, 51, 51, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); }
         }
     </style>
 </head>
