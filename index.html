@@ -79,7 +79,7 @@
 
     <script>
         function formatUptime(ms) {
-            if (!ms) return '0 วินาที';
+            if (!ms || ms < 0) return '0 วินาที';
             let seconds = Math.floor((ms / 1000) % 60);
             let minutes = Math.floor((ms / (1000 * 60)) % 60);
             let hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
@@ -105,7 +105,7 @@
                         ? '<span class="online">ออนไลน์ พร้อมใช้งาน ✅</span>' 
                         : '<span class="offline">ออฟไลน์ ❌</span>';
 
-                    // สร้างหน้าการ์ดของแต่ละบอท
+                    // สร้างหน้าการ์ดของแต่ละบอท (แสดงปิงและเวลาทำงานทุกตัว)
                     htmlContent += `
                         <div class="bot-card">
                             <h1>✨ ${bot.name} ✨</h1>
@@ -115,23 +115,18 @@
                                 <span>🟢 สถานะบอท:</span>
                                 <span>${statusHtml}</span>
                             </div>
-                    `;
-
-                    // เฉพาะบอทตัวหลักเท่านั้นที่จะโชว์ปิงและเวลาได้ (เพราะเป็นบอทที่เราถือ Token อยู่)
-                    if (bot.isMain) {
-                        htmlContent += `
+                            
                             <div class="status-box">
                                 <span>📡 ความหน่วง (Ping):</span>
                                 <span class="value">${bot.ping >= 0 ? bot.ping : 0} ms</span>
                             </div>
+                            
                             <div class="status-box">
                                 <span>⏱️ เวลาทำงาน:</span>
                                 <span class="value">${formatUptime(bot.uptime)}</span>
                             </div>
-                        `;
-                    }
-
-                    htmlContent += `</div>`; // ปิดการ์ดบอท
+                        </div>
+                    `;
                 });
 
                 document.getElementById('bots-container').innerHTML = htmlContent;
