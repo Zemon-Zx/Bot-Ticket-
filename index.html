@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>สถานะบอทของซีม่อน </title>
+    <title>สถานะบอทของซีม่อน 💖</title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -17,13 +17,40 @@
             align-items: center;
             min-height: 100vh;
         }
+
+        /* --- กรอบข้อความวิ่งด้านบนสุด --- */
+        .marquee-container {
+            width: 100%;
+            max-width: 450px;
+            background-color: rgba(20, 0, 0, 0.8);
+            border: 1px solid #cc0000;
+            border-radius: 10px;
+            padding: 10px 0;
+            margin-bottom: 10px;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+            overflow: hidden; /* ซ่อนข้อความที่ล้นออกไป */
+            position: relative;
+        }
+        .marquee-text {
+            color: #ffcccc;
+            font-size: 15px;
+            font-weight: 600;
+            white-space: nowrap;
+            /* อนิเมชันวิ่งจากขวาไปซ้าย (20 วินาทีเพื่อให้อ่านทัน) */
+            animation: marquee 20s linear infinite; 
+        }
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
         .wrapper {
             display: flex;
             flex-direction: column;
             gap: 20px;
             width: 100%;
             max-width: 450px;
-            margin-top: 20px;
+            margin-top: 10px; /* ลดระยะห่างด้านบนให้ชิดกรอบวิ่ง */
             margin-bottom: 20px;
         }
         .bot-card {
@@ -122,12 +149,18 @@
 </head>
 <body>
 
+    <div class="marquee-container">
+        <div class="marquee-text">
+            <span class="blink-emoji">📢</span> ยินดีต้อนรับเข้าสู่ระบบตรวจสอบสถานะบอทอัตโนมัติ 24 ชั่วโมง! สามารถเช็คสถานะการทำงานและความหน่วงของบอททั้งหมดได้ที่นี่เลยนะคะ ขอบคุณที่ไว้วางใจระบบของซีม่อนและปายค่ะ <span class="blink-emoji">💖</span>
+        </div>
+    </div>
+
     <div class="wrapper" id="bots-container">
         <h3 style="text-align:center; color:#ff3333; text-shadow: 0 0 5px #ff0000;">กำลังโหลดข้อมูลบอทจากปาย... <span class="blink-emoji">⏳</span></h3>
     </div>
 
     <div class="footer">
-        เจ้าของ: <b style="color:#ff3333;">ซีม่อน</b> | ผู้ร่วมพัฒนา: <b style="color:#ff3333;">ปาย</b> <span class="blink-emoji"></span><br>
+        เจ้าของ: <b style="color:#ff3333;">ซีม่อน</b> | ผู้ร่วมพัฒนา: <b style="color:#ff3333;">ปาย</b> <span class="blink-emoji">💖</span><br>
         <small>อัปเดตข้อมูลแบบเรียลไทม์ <span class="blink-emoji">🔄</span></small><br>
         
         <a href="https://discord.gg/AYby9ypmyy" target="_blank" class="discord-btn">
