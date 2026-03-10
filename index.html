@@ -163,8 +163,13 @@
 
                 bots.forEach(bot => {
                     let statusHtml = bot.isOnline 
-                        ? '<span class="online">ออนไลน์ พร้อมใช้งาน <span class="blink-emoji">✅</span></span>' 
-                        : '<span class="offline">ออฟไลน์ <span class="blink-emoji">❌</span></span>';
+                        ? '<span class="online">ออนไลน์ พร้อมใช้งาน</span>' 
+                        : '<span class="offline">ออฟไลน์</span>';
+
+                    // อิโมจิกระพริบด้านหน้าสถานะบอท (เขียวออนไลน์ แดงออฟไลน์)
+                    let statusDot = bot.isOnline
+                        ? '<span class="blink-emoji">🟢</span>'
+                        : '<span class="blink-emoji">🔴</span>';
 
                     // สร้างหน้าการ์ดของแต่ละบอท
                     htmlContent += `
@@ -173,7 +178,7 @@
                             <div class="subtitle">ระบบดูแลอัตโนมัติตลอด 24 ชั่วโมง</div>
                             
                             <div class="status-box">
-                                <span><span class="blink-emoji">🔴</span> สถานะบอท:</span>
+                                <span>${statusDot} สถานะบอท:</span>
                                 <span>${statusHtml}</span>
                             </div>
                             
