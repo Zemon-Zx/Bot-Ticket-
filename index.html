@@ -28,20 +28,14 @@
             padding: 10px 0;
             margin-bottom: 10px;
             box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
-            overflow: hidden; /* ซ่อนข้อความที่ล้นออกไป */
-            position: relative;
         }
-        .marquee-text {
+        
+        /* ปรับแต่งแท็ก marquee ของ HTML โดยตรง */
+        marquee {
             color: #ffcccc;
             font-size: 15px;
             font-weight: 600;
-            white-space: nowrap;
-            /* อนิเมชันวิ่งจากขวาไปซ้าย (20 วินาทีเพื่อให้อ่านทัน) */
-            animation: marquee 20s linear infinite; 
-        }
-        @keyframes marquee {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
+            display: block; /* ให้ครอบคลุมพื้นที่ด้านใน */
         }
 
         .wrapper {
@@ -150,9 +144,9 @@
 <body>
 
     <div class="marquee-container">
-        <div class="marquee-text">
+        <marquee scrollamount="4">
             <span class="blink-emoji">📢</span> ยินดีต้อนรับเข้าสู่ระบบตรวจสอบสถานะบอทอัตโนมัติ 24 ชั่วโมง! สามารถเช็คสถานะการทำงานและความหน่วงของบอททั้งหมดได้ที่นี่เลยนะคะ ขอบคุณที่ไว้วางใจระบบของซีม่อนและปายค่ะ <span class="blink-emoji">💖</span>
-        </div>
+        </marquee>
     </div>
 
     <div class="wrapper" id="bots-container">
