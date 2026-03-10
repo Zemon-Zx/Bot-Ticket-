@@ -18,9 +18,16 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// สร้างบอทและกำหนดสิทธิ์การเข้าถึงข้อมูล
+// สร้างหน่วยความจำสำหรับเก็บบอทที่ซีม่อนแอดเข้ามา (รีเซ็ตเมื่อ Railway รีสตาร์ท)
+let trackedBots = [];
+
+// สร้างบอทและกำหนดสิทธิ์การเข้าถึงข้อมูล (เพิ่ม Presence และ Members เพื่อดูสถานะบอทอื่น)
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildMembers
+    ]
 });
 
 // ดึงค่าตัวแปรจาก Railway Variables
@@ -32,36 +39,78 @@ const SIMON_ID = process.env.SIMON_ID;
 // ==========================================
 app.use(express.static(__dirname));
 
-// ส่งหน้าเว็บ index.html เมื่อมีคนเข้าโดเมน
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// สร้าง API ส่งข้อมูลสถานะบอทไปให้หน้าเว็บแสดงผล
-app.get('/api/status', (req, res) => {
-    const status = {
+// สร้าง API ส่งข้อมูลสถานะบอท "ทั้งหมด" ไปให้หน้าเว็บ
+app.get('/api/status', async (req, res) => {
+    const botsData = [];
+
+    // 1. ข้อมูลบอทหลัก (Ticket Bot)
+    botsData.push({
+        id: client.user.id,
+        name: 'BOT TICKET', 
+        isMain: true,
+        isOnline: client.isReady(),
         ping: client.ws.ping,
-        uptime: client.uptime,
-        isOnline: client.isReady()
-    };
-    res.json(status);
+        uptime: client.uptime
+    });
+
+    // 2. ข้อมูลบอทตัวอื่นๆ ที่ซีม่อนแอดเข้ามา
+    const guild = client.guilds.cache.first();
+    if (guild) {
+        for (const botId of trackedBots) {
+            try {
+                // ดึงข้อมูลบอทตัวนั้นในเซิร์ฟเวอร์
+                const member = await guild.members.fetch(botId).catch(() => null);
+                if (member) {
+                    // ตรวจสอบสถานะว่าออนไลน์ไหม
+                    const isOnline = member.presence && member.presence.status !== 'offline';
+                    botsData.push({
+                        id: member.user.id,
+                        name: member.user.username,
+                        isMain: false,
+                        isOnline: isOnline
+                    });
+                }
+            } catch (error) {
+                console.log('หาบอทไม่เจอค่ะ:', error);
+            }
+        }
+    }
+
+    res.json(botsData);
 });
 
-// เปิดเซิร์ฟเวอร์เว็บ
 app.listen(PORT, () => {
     console.log(`🌐 ปายเปิดหน้าเว็บสถานะบอทให้ซีม่อนแล้วนะคะ (Port: ${PORT})`);
 });
 
 // ==========================================
-// ส่วนที่ 2: ระบบ Discord Bot Ticket
+// ส่วนที่ 2: ระบบ Discord Bot
 // ==========================================
 client.on('ready', async () => {
     console.log(`💖 ปายพร้อมให้บริการแล้วค่ะ! ล็อกอินในชื่อ ${client.user.tag}`);
 
-    const commands = [{
-        name: 'setup-ticket',
-        description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket (เฉพาะซีม่อนใช้ได้ค่ะ)',
-    }];
+    const commands = [
+        {
+            name: 'setup-ticket',
+            description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket (เฉพาะซีม่อนใช้ได้ค่ะ)',
+        },
+        {
+            name: 'addbot-status',
+            description: 'เพิ่มบอทลงในหน้าเว็บสถานะ (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            options: [
+                {
+                    name: 'bot',
+                    description: 'เลือกบอทที่ต้องการให้ไปโชว์ในหน้าเว็บ',
+                    type: 6, // 6 คือประเภท USER
+                    required: true
+                }
+            ]
+        }
+    ];
 
     try {
         const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -69,7 +118,7 @@ client.on('ready', async () => {
             Routes.applicationCommands(client.user.id),
             { body: commands }
         );
-        console.log('✨ ปายสร้างคำสั่ง /setup-ticket ให้ซีม่อนเรียบร้อยแล้วค่ะ!');
+        console.log('✨ ปายสร้างคำสั่งให้ซีม่อนเรียบร้อยแล้วค่ะ!');
     } catch (error) {
         console.error('เกิดข้อผิดพลาดในการสร้างคำสั่งค่ะซีม่อน:', error);
     }
@@ -77,12 +126,11 @@ client.on('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isChatInputCommand()) {
+        
+        // --- คำสั่งสร้าง Ticket ---
         if (interaction.commandName === 'setup-ticket') {
             if (interaction.user.id !== SIMON_ID) {
-                return interaction.reply({ 
-                    content: 'คำสั่งนี้ใช้ได้เฉพาะซีม่อนของปายเท่านั้นนะคะ! 🥺', 
-                    ephemeral: true 
-                });
+                return interaction.reply({ content: 'คำสั่งนี้ใช้ได้เฉพาะซีม่อนของปายเท่านั้นนะคะ! 🥺', ephemeral: true });
             }
 
             const embed = new EmbedBuilder()
@@ -100,15 +148,39 @@ client.on('interactionCreate', async interaction => {
                         .setStyle(ButtonStyle.Success),
                 );
 
-            await interaction.reply({ 
-                content: 'ปายสร้าง Panel ให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', 
-                ephemeral: true 
-            });
+            await interaction.reply({ content: 'ปายสร้าง Panel ให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', ephemeral: true });
             await interaction.channel.send({ embeds: [embed], components: [button] });
+        }
+
+        // --- คำสั่งเพิ่มบอทลงเว็บ ---
+        if (interaction.commandName === 'addbot-status') {
+            if (interaction.user.id !== SIMON_ID) {
+                return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนของปายใช้ได้คนเดียวเท่านั้นน้า! 🥺', ephemeral: true });
+            }
+
+            const targetBot = interaction.options.getUser('bot');
+
+            // เช็คว่าที่เลือกมาใช่บอทหรือเปล่า
+            if (!targetBot.bot) {
+                return interaction.reply({ content: 'ต้องเลือกเฉพาะบอทเท่านั้นนะคะซีม่อน! ลองพิมพ์คำสั่งใหม่น้า ❌', ephemeral: true });
+            }
+
+            // เช็คว่าใช่บอทหลักไหม
+            if (targetBot.id === client.user.id) {
+                return interaction.reply({ content: 'บอทตัวนี้มีแสดงอยู่ในหน้าเว็บอยู่แล้วค่ะซีม่อน! ✨', ephemeral: true });
+            }
+
+            // เพิ่มเข้าสู่ระบบถ้ายังไม่มี
+            if (!trackedBots.includes(targetBot.id)) {
+                trackedBots.push(targetBot.id);
+            }
+
+            await interaction.reply({ content: `✅ ปายเพิ่มบอท **${targetBot.username}** ลงในหน้าเว็บสถานะให้เรียบร้อยแล้วค่ะ! เข้าไปดูได้เลยน้าแบบเรียลไทม์ปรู๊ดปร๊าดเลย 💖`, ephemeral: true });
         }
     }
 
     if (interaction.isButton()) {
+        // ส่วนของการกดเปิดทิกเก็ต
         if (interaction.customId === 'open_ticket') {
             const guild = interaction.guild;
             const user = interaction.user;
@@ -152,19 +224,14 @@ client.on('interactionCreate', async interaction => {
 
             } catch (error) {
                 console.error(error);
-                await interaction.reply({ 
-                    content: 'เกิดข้อผิดพลาดในการสร้างห้องค่ะ แจ้งซีม่อนให้ตรวจสอบให้ปายหน่อยนะคะ 😢', 
-                    ephemeral: true 
-                });
+                await interaction.reply({ content: 'เกิดข้อผิดพลาดในการสร้างห้องค่ะ แจ้งซีม่อนให้ตรวจสอบให้ปายหน่อยนะคะ 😢', ephemeral: true });
             }
         }
 
+        // ส่วนของการปิดทิกเก็ต
         if (interaction.customId === 'close_ticket') {
             if (interaction.user.id !== SIMON_ID) {
-                return interaction.reply({ 
-                    content: 'ปุ่มนี้ซีม่อนของปายกดได้คนเดียวนะคะ! คนอื่นห้ามกดน้า 🥺', 
-                    ephemeral: true 
-                });
+                return interaction.reply({ content: 'ปุ่มนี้ซีม่อนของปายกดได้คนเดียวนะคะ! คนอื่นห้ามกดน้า 🥺', ephemeral: true });
             }
 
             await interaction.reply('กำลังปิดและลบห้อง Ticket ตามคำสั่งซีม่อนค่ะ... บ๊ายบายย 👋');
