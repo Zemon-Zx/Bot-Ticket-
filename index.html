@@ -8,8 +8,8 @@
     <style>
         body {
             font-family: 'Kanit', sans-serif;
-            background: linear-gradient(135deg, #ffc3a0 0%, #ffafbd 100%);
-            color: #333;
+            background-color: #000000; /* พื้นหลังสีดำสนิท */
+            color: #ffffff; /* ตัวหนังสือสีขาวให้ตัดกับพื้นดำ */
             margin: 0;
             padding: 20px;
             display: flex;
@@ -27,20 +27,23 @@
             margin-bottom: 20px;
         }
         .bot-card {
-            background-color: rgba(255, 255, 255, 0.95);
+            background-color: rgba(20, 0, 0, 0.8); /* สีพื้นหลังการ์ดโทนดำแดง */
             padding: 30px;
             border-radius: 25px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            border: 2px solid #8b0000; /* ขอบสีแดงเข้ม */
+            box-shadow: 0 10px 25px rgba(255, 0, 0, 0.2); /* เงาสีแดงเท่ๆ */
             text-align: center;
+            backdrop-filter: blur(5px);
         }
         h1 {
-            color: #d81b60;
+            color: #ff3333; /* ชื่อบอทสีแดงสว่าง */
             font-size: 24px;
             margin-top: 0;
             margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
         }
         .subtitle {
-            color: #777;
+            color: #aaaaaa;
             font-size: 14px;
             margin-bottom: 20px;
         }
@@ -48,33 +51,45 @@
             margin: 12px 0;
             padding: 15px 20px;
             border-radius: 15px;
-            background-color: #fdf0f3;
+            background-color: rgba(255, 0, 0, 0.1); /* พื้นหลังสีแดงอ่อนๆ มองทะลุได้ */
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-weight: 600;
-            border-left: 5px solid #ffafbd;
+            border-left: 5px solid #cc0000; /* แถบด้านข้างสีแดงเข้ม */
+            color: #eeeeee;
         }
-        .online { color: #2e7d32; }
-        .offline { color: #c62828; }
-        .value { color: #555; }
+        .online { color: #00ff00; text-shadow: 0 0 8px rgba(0, 255, 0, 0.6); }
+        .offline { color: #ff3333; text-shadow: 0 0 8px rgba(255, 51, 51, 0.6); }
+        .value { color: #ffcccc; } /* ค่าปิงและเวลาเป็นสีแดงอ่อน */
         .footer {
             margin-top: 20px;
             font-size: 14px;
-            color: #666;
+            color: #777777;
             text-align: center;
+        }
+        
+        /* ลูกเล่นอิโมจิกระพริบเท่ๆ */
+        @keyframes blink-effect {
+            0% { opacity: 1; text-shadow: 0 0 10px rgba(255, 255, 255, 0.8); }
+            50% { opacity: 0.3; text-shadow: none; }
+            100% { opacity: 1; text-shadow: 0 0 10px rgba(255, 255, 255, 0.8); }
+        }
+        .blink-emoji {
+            display: inline-block;
+            animation: blink-effect 1.5s infinite ease-in-out;
         }
     </style>
 </head>
 <body>
 
     <div class="wrapper" id="bots-container">
-        <h3 style="text-align:center; color:#fff;">กำลังโหลดข้อมูลบอทจากปาย... ⏳</h3>
+        <h3 style="text-align:center; color:#ff3333; text-shadow: 0 0 5px #ff0000;">กำลังโหลดข้อมูลบอทจากปาย... <span class="blink-emoji">⏳</span></h3>
     </div>
 
     <div class="footer">
-        เจ้าของ: <b>ซีม่อน</b> | ผู้ร่วมพัฒนา: <b>ปาย</b> 💖<br>
-        <small>อัปเดตข้อมูลแบบเรียลไทม์ 🔄</small>
+        เจ้าของ: <b style="color:#ff3333;">ซีม่อน</b> | ผู้ร่วมพัฒนา: <b style="color:#ff3333;">ปาย</b> <span class="blink-emoji">💖</span><br>
+        <small>อัปเดตข้อมูลแบบเรียลไทม์ <span class="blink-emoji">🔄</span></small>
     </div>
 
     <script>
@@ -102,27 +117,27 @@
 
                 bots.forEach(bot => {
                     let statusHtml = bot.isOnline 
-                        ? '<span class="online">ออนไลน์ พร้อมใช้งาน ✅</span>' 
-                        : '<span class="offline">ออฟไลน์ ❌</span>';
+                        ? '<span class="online">ออนไลน์ พร้อมใช้งาน <span class="blink-emoji">✅</span></span>' 
+                        : '<span class="offline">ออฟไลน์ <span class="blink-emoji">❌</span></span>';
 
-                    // สร้างหน้าการ์ดของแต่ละบอท (แสดงปิงและเวลาทำงานทุกตัว)
+                    // สร้างหน้าการ์ดของแต่ละบอท (แสดงปิงและเวลาทำงานทุกตัว พร้อมอิโมจิกระพริบ)
                     htmlContent += `
                         <div class="bot-card">
-                            <h1>✨ ${bot.name} ✨</h1>
+                            <h1><span class="blink-emoji">✨</span> ${bot.name} <span class="blink-emoji">✨</span></h1>
                             <div class="subtitle">ระบบดูแลอัตโนมัติตลอด 24 ชั่วโมง</div>
                             
                             <div class="status-box">
-                                <span>🟢 สถานะบอท:</span>
+                                <span><span class="blink-emoji">🔴</span> สถานะบอท:</span>
                                 <span>${statusHtml}</span>
                             </div>
                             
                             <div class="status-box">
-                                <span>📡 ความหน่วง (Ping):</span>
+                                <span><span class="blink-emoji">📡</span> ความหน่วง (Ping):</span>
                                 <span class="value">${bot.ping >= 0 ? bot.ping : 0} ms</span>
                             </div>
                             
                             <div class="status-box">
-                                <span>⏱️ เวลาทำงาน:</span>
+                                <span><span class="blink-emoji">⏱️</span> เวลาทำงาน:</span>
                                 <span class="value">${formatUptime(bot.uptime)}</span>
                             </div>
                         </div>
