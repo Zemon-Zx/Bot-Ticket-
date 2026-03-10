@@ -10,7 +10,13 @@ const {
     REST,
     Routes
 } = require('discord.js');
+const express = require('express');
+const path = require('path');
 require('dotenv').config();
+
+// สร้างแอปเว็บเซิร์ฟเวอร์
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 // สร้างบอทและกำหนดสิทธิ์การเข้าถึงข้อมูล
 const client = new Client({
@@ -21,10 +27,37 @@ const client = new Client({
 const TOKEN = process.env.DISCORD_TOKEN;
 const SIMON_ID = process.env.SIMON_ID;
 
+// ==========================================
+// ส่วนที่ 1: ระบบ Web Server (แสดงหน้าเว็บ)
+// ==========================================
+app.use(express.static(__dirname));
+
+// ส่งหน้าเว็บ index.html เมื่อมีคนเข้าโดเมน
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// สร้าง API ส่งข้อมูลสถานะบอทไปให้หน้าเว็บแสดงผล
+app.get('/api/status', (req, res) => {
+    const status = {
+        ping: client.ws.ping,
+        uptime: client.uptime,
+        isOnline: client.isReady()
+    };
+    res.json(status);
+});
+
+// เปิดเซิร์ฟเวอร์เว็บ
+app.listen(PORT, () => {
+    console.log(`🌐 ปายเปิดหน้าเว็บสถานะบอทให้ซีม่อนแล้วนะคะ (Port: ${PORT})`);
+});
+
+// ==========================================
+// ส่วนที่ 2: ระบบ Discord Bot Ticket
+// ==========================================
 client.on('ready', async () => {
     console.log(`💖 ปายพร้อมให้บริการแล้วค่ะ! ล็อกอินในชื่อ ${client.user.tag}`);
 
-    // สร้างคำสั่ง Slash Command (รอสักพักคำสั่งถึงจะขึ้นในดิสคอร์ดนะคะ)
     const commands = [{
         name: 'setup-ticket',
         description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket (เฉพาะซีม่อนใช้ได้ค่ะ)',
@@ -43,13 +76,8 @@ client.on('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
-    // -----------------------------------------------------
-    // ส่วนที่ 1: จัดการคำสั่ง Slash Command /setup-ticket
-    // -----------------------------------------------------
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'setup-ticket') {
-            
-            // ตรวจสอบว่าเป็นซีม่อนกดสั่งหรือเปล่า
             if (interaction.user.id !== SIMON_ID) {
                 return interaction.reply({ 
                     content: 'คำสั่งนี้ใช้ได้เฉพาะซีม่อนของปายเท่านั้นนะคะ! 🥺', 
@@ -57,14 +85,12 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            // สร้างหน้าต่าง Panel ข้อความ
             const embed = new EmbedBuilder()
                 .setTitle('🎫 ศูนย์ช่วยเหลือ / ติดต่อสอบถาม')
                 .setDescription('หากมีข้อสงสัย แจ้งปัญหา หรือต้องการติดต่อทีมงาน\nสามารถกดปุ่ม **"เปิด Ticket"** ด้านล่างได้เลยนะคะ เดี๋ยวระบบจะสร้างห้องส่วนตัวให้ค่ะ ✨')
                 .setColor('#FFB6C1')
                 .setFooter({ text: 'เจ้าของ ซีม่อน ผู้ร่วมพัฒนา ปาย' });
 
-            // สร้างปุ่มกดเปิด Ticket
             const button = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -74,7 +100,6 @@ client.on('interactionCreate', async interaction => {
                         .setStyle(ButtonStyle.Success),
                 );
 
-            // ส่ง Panel ลงในห้องที่พิมพ์คำสั่ง
             await interaction.reply({ 
                 content: 'ปายสร้าง Panel ให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', 
                 ephemeral: true 
@@ -83,48 +108,28 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // -----------------------------------------------------
-    // ส่วนที่ 2: จัดการเมื่อมีคนกดปุ่มต่างๆ
-    // -----------------------------------------------------
     if (interaction.isButton()) {
-        
-        // --- เมื่อสมาชิกกดปุ่ม "เปิด Ticket" ---
         if (interaction.customId === 'open_ticket') {
             const guild = interaction.guild;
             const user = interaction.user;
 
             try {
-                // สร้างห้องส่วนตัว (เห็นแค่ซีม่อน กับคนที่กดเปิด)
                 const ticketChannel = await guild.channels.create({
                     name: `ticket-${user.username}`,
                     type: ChannelType.GuildText,
                     permissionOverwrites: [
-                        { // ปิดไม่ให้ everyone เห็น
-                            id: guild.id,
-                            deny: [PermissionsBitField.Flags.ViewChannel],
-                        },
-                        { // ให้คนที่กดเปิดห้องเห็นและพิมพ์ได้
-                            id: user.id,
-                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
-                        },
-                        { // ให้ซีม่อนเห็นและพิมพ์ได้
-                            id: SIMON_ID,
-                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
-                        },
-                        { // ให้บอท (ปาย) เห็นและจัดการห้องได้
-                            id: client.user.id,
-                            allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory],
-                        }
+                        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                        { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                        { id: SIMON_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                        { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                     ],
                 });
 
-                // ข้อความต้อนรับในห้อง Ticket
                 const ticketEmbed = new EmbedBuilder()
                     .setTitle(`ยินดีต้อนรับสู่ห้อง Ticket ค่ะคุณ ${user.username} 🎀`)
                     .setDescription('กรุณาพิมพ์รายละเอียดทิ้งไว้สักครู่นะคะ เดี๋ยวซีม่อนจะเข้ามาดูแลค่ะ\n\n*(ปุ่มปิดห้องสงวนสิทธิ์ให้ซีม่อนกดได้คนเดียวนะคะ)*')
                     .setColor('#ADD8E6');
 
-                // ปุ่มสำหรับปิด/ลบห้อง
                 const closeButton = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
@@ -134,14 +139,12 @@ client.on('interactionCreate', async interaction => {
                             .setStyle(ButtonStyle.Danger),
                     );
 
-                // ส่งข้อความไปในห้องที่สร้างใหม่ พร้อมแท็กซีม่อนและสมาชิก
                 await ticketChannel.send({ 
                     content: `<@${user.id}> | <@${SIMON_ID}> มี Ticket ใหม่เข้ามาค่ะ!`, 
                     embeds: [ticketEmbed], 
                     components: [closeButton] 
                 });
                 
-                // ตอบกลับคนที่กดปุ่มแบบส่วนตัว (ephemeral)
                 await interaction.reply({ 
                     content: `ปายสร้างห้อง Ticket ให้เรียบร้อยแล้วค่ะ แวะไปที่ ${ticketChannel} ได้เลยน้า 💖`, 
                     ephemeral: true 
@@ -156,10 +159,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
 
-        // --- เมื่อมีการกดปุ่ม "ปิดและลบ Ticket" ---
         if (interaction.customId === 'close_ticket') {
-            
-            // ล็อคให้ซีม่อนกดได้คนเดียว
             if (interaction.user.id !== SIMON_ID) {
                 return interaction.reply({ 
                     content: 'ปุ่มนี้ซีม่อนของปายกดได้คนเดียวนะคะ! คนอื่นห้ามกดน้า 🥺', 
@@ -167,10 +167,7 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            // แจ้งเตือนก่อนลบห้อง
             await interaction.reply('กำลังปิดและลบห้อง Ticket ตามคำสั่งซีม่อนค่ะ... บ๊ายบายย 👋');
-            
-            // รอ 3 วินาทีแล้วลบห้องทิ้ง
             setTimeout(() => {
                 interaction.channel.delete().catch(console.error);
             }, 3000);
@@ -178,5 +175,4 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// ให้บอทออนไลน์
 client.login(TOKEN);
