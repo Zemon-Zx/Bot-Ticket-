@@ -14,14 +14,13 @@ const express = require('express');
 const path = require('path');
 require('dotenv').config();
 
-// สร้างแอปเว็บเซิร์ฟเวอร์
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// สร้างหน่วยความจำแบบ Map เพื่อเก็บ ID บอท และ เวลาที่ซีม่อนแอดเข้ามา
+// หน่วยความจำสำหรับเก็บบอทและลิ้งค์ร้านค้า
 let trackedBots = new Map();
+let shopLinkUrl = "ยังไม่ได้ตั้งค่าลิ้งค์ค่ะ"; // ตัวแปรเก็บลิ้งค์เว็บที่ซีม่อนใส่ตอนใช้คำสั่ง
 
-// สร้างบอทและกำหนดสิทธิ์การเข้าถึงข้อมูล (เพิ่ม Presence และ Members เพื่อดูสถานะบอทอื่น)
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -30,12 +29,11 @@ const client = new Client({
     ]
 });
 
-// ดึงค่าตัวแปรจาก Railway Variables
 const TOKEN = process.env.DISCORD_TOKEN;
 const SIMON_ID = process.env.SIMON_ID;
 
 // ==========================================
-// ส่วนที่ 1: ระบบ Web Server (แสดงหน้าเว็บ)
+// ส่วนที่ 1: ระบบ Web Server
 // ==========================================
 app.use(express.static(__dirname));
 
@@ -43,36 +41,25 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// สร้าง API ส่งข้อมูลสถานะบอท "ทั้งหมด" ไปให้หน้าเว็บ
 app.get('/api/status', async (req, res) => {
     const botsData = [];
-
-    // 1. ข้อมูลบอทหลัก (Ticket Bot)
     botsData.push({
         id: client.user.id,
-        name: 'BOT TICKET', 
+        name: 'BOT TICKET & SHOP', 
         isMain: true,
         isOnline: client.isReady(),
         ping: client.ws.ping,
         uptime: client.uptime
     });
 
-    // 2. ข้อมูลบอทตัวอื่นๆ ที่ซีม่อนแอดเข้ามา
     const guild = client.guilds.cache.first();
     if (guild) {
         for (const [botId, startTime] of trackedBots.entries()) {
             try {
-                // ดึงข้อมูลบอทตัวนั้นในเซิร์ฟเวอร์
                 const member = await guild.members.fetch(botId).catch(() => null);
                 if (member) {
-                    // ตรวจสอบสถานะว่าออนไลน์ไหม
                     const isOnline = member.presence && member.presence.status !== 'offline';
-                    
-                    // สุ่มปิงให้ดูเนียนๆ อิงจากบอทหลัก
-                    const fakePing = client.ws.ping > 0 
-                        ? client.ws.ping + Math.floor(Math.random() * 12) 
-                        : 45 + Math.floor(Math.random() * 20);
-
+                    const fakePing = client.ws.ping > 0 ? client.ws.ping + Math.floor(Math.random() * 12) : 45 + Math.floor(Math.random() * 20);
                     botsData.push({
                         id: member.user.id,
                         name: member.user.username,
@@ -87,12 +74,11 @@ app.get('/api/status', async (req, res) => {
             }
         }
     }
-
     res.json(botsData);
 });
 
 app.listen(PORT, () => {
-    console.log(`🌐 ปายเปิดหน้าเว็บสถานะบอทให้ซีม่อนแล้วนะคะ (Port: ${PORT})`);
+    console.log(`🌐 ปายเปิดหน้าเว็บให้ซีม่อนแล้วนะคะ (Port: ${PORT})`);
 });
 
 // ==========================================
@@ -104,7 +90,7 @@ client.on('ready', async () => {
     const commands = [
         {
             name: 'setup-ticket',
-            description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket (เฉพาะซีม่อนใช้ได้ค่ะ)'
         },
         {
             name: 'addbot-status',
@@ -113,7 +99,19 @@ client.on('ready', async () => {
                 {
                     name: 'bot',
                     description: 'เลือกบอทที่ต้องการให้ไปโชว์ในหน้าเว็บ',
-                    type: 6, // 6 คือประเภท USER
+                    type: 6,
+                    required: true
+                }
+            ]
+        },
+        {
+            name: 'setup-shop',
+            description: 'สร้างหน้าต่าง Panel ร้านค้า Zemon Źx (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            options: [
+                {
+                    name: 'url',
+                    description: 'ใส่ลิ้งค์เว็บไซต์ร้านค้าของเราค่ะ (เช่น https://...)',
+                    type: 3, // String
                     required: true
                 }
             ]
@@ -126,7 +124,7 @@ client.on('ready', async () => {
             Routes.applicationCommands(client.user.id),
             { body: commands }
         );
-        console.log('✨ ปายสร้างคำสั่งให้ซีม่อนเรียบร้อยแล้วค่ะ!');
+        console.log('✨ ปายสร้างคำสั่งทั้งหมดให้ซีม่อนเรียบร้อยแล้วค่ะ!');
     } catch (error) {
         console.error('เกิดข้อผิดพลาดในการสร้างคำสั่งค่ะซีม่อน:', error);
     }
@@ -147,16 +145,15 @@ client.on('interactionCreate', async interaction => {
                 .setColor('#FFB6C1')
                 .setFooter({ text: 'เจ้าของ ซีม่อน ผู้ร่วมพัฒนา ปาย' });
 
-            const button = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('open_ticket')
-                        .setLabel('เปิด Ticket')
-                        .setEmoji('📩')
-                        .setStyle(ButtonStyle.Success),
-                );
+            const button = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('open_ticket')
+                    .setLabel('เปิด Ticket')
+                    .setEmoji('📩')
+                    .setStyle(ButtonStyle.Success),
+            );
 
-            await interaction.reply({ content: 'ปายสร้าง Panel ให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', ephemeral: true });
+            await interaction.reply({ content: 'ปายสร้าง Panel Ticket ให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', ephemeral: true });
             await interaction.channel.send({ embeds: [embed], components: [button] });
         }
 
@@ -165,30 +162,61 @@ client.on('interactionCreate', async interaction => {
             if (interaction.user.id !== SIMON_ID) {
                 return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนของปายใช้ได้คนเดียวเท่านั้นน้า! 🥺', ephemeral: true });
             }
-
             const targetBot = interaction.options.getUser('bot');
+            if (!targetBot.bot) return interaction.reply({ content: 'ต้องเลือกเฉพาะบอทเท่านั้นนะคะซีม่อน! ❌', ephemeral: true });
+            if (targetBot.id === client.user.id) return interaction.reply({ content: 'บอทตัวนี้มีแสดงอยู่ในหน้าเว็บอยู่แล้วค่ะ! ✨', ephemeral: true });
 
-            // เช็คว่าที่เลือกมาใช่บอทหรือเปล่า
-            if (!targetBot.bot) {
-                return interaction.reply({ content: 'ต้องเลือกเฉพาะบอทเท่านั้นนะคะซีม่อน! ลองพิมพ์คำสั่งใหม่น้า ❌', ephemeral: true });
-            }
-
-            // เช็คว่าใช่บอทหลักไหม
-            if (targetBot.id === client.user.id) {
-                return interaction.reply({ content: 'บอทตัวนี้มีแสดงอยู่ในหน้าเว็บอยู่แล้วค่ะซีม่อน! ✨', ephemeral: true });
-            }
-
-            // เพิ่มเข้าสู่ระบบถ้ายังไม่มี โดยบันทึกเวลาปัจจุบันไว้เป็นจุดเริ่มต้นการทำงาน
             if (!trackedBots.has(targetBot.id)) {
                 trackedBots.set(targetBot.id, Date.now());
             }
+            await interaction.reply({ content: `✅ ปายเพิ่มบอท **${targetBot.username}** ลงในหน้าเว็บสถานะให้เรียบร้อยแล้วค่ะ! 💖`, ephemeral: true });
+        }
 
-            await interaction.reply({ content: `✅ ปายเพิ่มบอท **${targetBot.username}** ลงในหน้าเว็บสถานะให้เรียบร้อยแล้วค่ะ! มีข้อมูลปิงกับเวลาทำงานขึ้นครบเลยน้า เข้าไปดูได้เลยค่ะ 💖`, ephemeral: true });
+        // --- คำสั่งสร้างหน้าต่าง Panel ร้านค้า ---
+        if (interaction.commandName === 'setup-shop') {
+            if (interaction.user.id !== SIMON_ID) {
+                return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนของปายใช้ได้คนเดียวเท่านั้นน้า! 🥺', ephemeral: true });
+            }
+
+            // รับค่าลิ้งค์จากที่ซีม่อนพิมพ์มา
+            shopLinkUrl = interaction.options.getString('url');
+
+            const embed = new EmbedBuilder()
+                .setTitle('🛒 Zemon Źx Shop | ร้านจำหน่ายสคริปต์และไอดีเกม')
+                .setDescription('✨ **ยินดีต้อนรับสู่ร้านค้าอัตโนมัติ 24 ชั่วโมงค่ะ!** ✨\n\nทางเรามีจำหน่ายทั้ง:\n📜 สคริปต์ Roblox พรีเมียม ออโต้ฟาร์มสุดตึง\n🎮 ไอดีเกมไก่ตัน เลเวลแม็กซ์ ผลตื่นครบ\n⚔️ บริการรับฟาร์มเลเวล ดันเจี้ยน และทำเผ่า V4\n\n👇 **สามารถกดปุ่มด้านล่างเพื่อรับลิ้งค์เข้าสู่หน้าเว็บไซต์สั่งซื้อได้เลยนะคะ**')
+                .setColor('#FF69B4')
+                .setImage('https://placehold.co/800x200/ffafbd/ffffff?text=Zemon+Zx+Shop') // รูปแบนเนอร์ร้านค้าสวยๆ
+                .setFooter({ text: 'เจ้าของ: ซีม่อน | ผู้ร่วมพัฒนา: ปาย 💖' });
+
+            const button = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('get_shop_link')
+                    .setLabel('กดรับลิ้งค์เว็บไซต์')
+                    .setEmoji('🌐')
+                    .setStyle(ButtonStyle.Primary),
+            );
+
+            await interaction.reply({ content: 'ปายสร้าง Panel ร้านค้าให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', ephemeral: true });
+            await interaction.channel.send({ embeds: [embed], components: [button] });
         }
     }
 
     if (interaction.isButton()) {
-        // ส่วนของการกดเปิดทิกเก็ต
+        // --- กดปุ่มรับลิ้งค์เว็บร้านค้า ---
+        if (interaction.customId === 'get_shop_link') {
+            // ส่งข้อความแบบเห็นคนเดียว
+            await interaction.reply({ 
+                content: `✨ ลิ้งค์เว็บไซต์ร้านค้าของเรามาแล้วค่ะคุณลูกค้า จิ้มเบาๆ ตรงนี้ได้เลยน้า:\n👉 **${shopLinkUrl}**\n\n*(ข้อความนี้จะลบอัตโนมัติใน 10 วินาทีนะคะ)*`, 
+                ephemeral: true 
+            });
+
+            // ตั้งเวลาลบข้อความภายใน 10 วินาที
+            setTimeout(() => {
+                interaction.deleteReply().catch(console.error);
+            }, 10000);
+        }
+
+        // --- ส่วนของการกดเปิดทิกเก็ต ---
         if (interaction.customId === 'open_ticket') {
             const guild = interaction.guild;
             const user = interaction.user;
@@ -210,14 +238,13 @@ client.on('interactionCreate', async interaction => {
                     .setDescription('กรุณาพิมพ์รายละเอียดทิ้งไว้สักครู่นะคะ เดี๋ยวซีม่อนจะเข้ามาดูแลค่ะ\n\n*(ปุ่มปิดห้องสงวนสิทธิ์ให้ซีม่อนกดได้คนเดียวนะคะ)*')
                     .setColor('#ADD8E6');
 
-                const closeButton = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('close_ticket')
-                            .setLabel('ปิดและลบ Ticket')
-                            .setEmoji('🔒')
-                            .setStyle(ButtonStyle.Danger),
-                    );
+                const closeButton = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('close_ticket')
+                        .setLabel('ปิดและลบ Ticket')
+                        .setEmoji('🔒')
+                        .setStyle(ButtonStyle.Danger),
+                );
 
                 await ticketChannel.send({ 
                     content: `<@${user.id}> | <@${SIMON_ID}> มี Ticket ใหม่เข้ามาค่ะ!`, 
@@ -225,23 +252,18 @@ client.on('interactionCreate', async interaction => {
                     components: [closeButton] 
                 });
                 
-                await interaction.reply({ 
-                    content: `ปายสร้างห้อง Ticket ให้เรียบร้อยแล้วค่ะ แวะไปที่ ${ticketChannel} ได้เลยน้า 💖`, 
-                    ephemeral: true 
-                });
-
+                await interaction.reply({ content: `ปายสร้างห้อง Ticket ให้เรียบร้อยแล้วค่ะ แวะไปที่ ${ticketChannel} ได้เลยน้า 💖`, ephemeral: true });
             } catch (error) {
                 console.error(error);
                 await interaction.reply({ content: 'เกิดข้อผิดพลาดในการสร้างห้องค่ะ แจ้งซีม่อนให้ตรวจสอบให้ปายหน่อยนะคะ 😢', ephemeral: true });
             }
         }
 
-        // ส่วนของการปิดทิกเก็ต
+        // --- ส่วนของการปิดทิกเก็ต ---
         if (interaction.customId === 'close_ticket') {
             if (interaction.user.id !== SIMON_ID) {
                 return interaction.reply({ content: 'ปุ่มนี้ซีม่อนของปายกดได้คนเดียวนะคะ! คนอื่นห้ามกดน้า 🥺', ephemeral: true });
             }
-
             await interaction.reply('กำลังปิดและลบห้อง Ticket ตามคำสั่งซีม่อนค่ะ... บ๊ายบายย 👋');
             setTimeout(() => {
                 interaction.channel.delete().catch(console.error);
