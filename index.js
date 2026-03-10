@@ -21,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 // สร้างหน่วยความจำแบบ Map เพื่อเก็บ ID บอท และ เวลาที่ซีม่อนแอดเข้ามา
 let trackedBots = new Map();
 
-// สร้าง Map สำหรับเก็บข้อมูลคนเข้าร่วม Giveaway (เพื่อเช็คว่าเคยกดหรือยัง)
+// สร้าง Map สำหรับเก็บข้อมูลคนเข้าร่วม Giveaway (เพื่อเช็คว่าเคยกดหรือยัง และเก็บสถานะ)
 let giveawayData = new Map();
 
 // สร้างบอทและกำหนดสิทธิ์การเข้าถึงข้อมูล
@@ -105,9 +105,110 @@ function parseTime(timeStr) {
 // สร้างหลอดความคืบหน้า (Progress Bar)
 function createProgressBar(percent) {
     const totalBars = 15;
-    const filledBars = Math.round((percent / 100) * totalBars);
+    let filledBars = Math.round((percent / 100) * totalBars);
+    if (filledBars < 0) filledBars = 0;
+    if (filledBars > totalBars) filledBars = totalBars;
     const emptyBars = totalBars - filledBars;
     return '⚪'.repeat(filledBars) + '⚫'.repeat(emptyBars);
+}
+
+// ฟังก์ชันเริ่มนับเวลากิจกรรม (จะถูกเรียกเมื่อมีคนกดเข้าร่วมคนแรก)
+async function startGiveawayTimer(msgId, channel) {
+    const data = giveawayData.get(msgId);
+    if (!data || data.hasStarted) return;
+
+    data.hasStarted = true;
+    const startTime = Date.now();
+    const endTime = startTime + data.durationMs;
+    const discordTimestamp = Math.floor(endTime / 1000);
+
+    const updateIntervalTime = Math.max(data.durationMs / 10, 5000); 
+    
+    // อัปเดต Embed ครั้งแรกที่เริ่มกิจกรรม
+    try {
+        const msg = await channel.messages.fetch(msgId);
+        const activeEmbed = EmbedBuilder.from(msg.embeds[0])
+            .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${data.prize}\n👑 **ผู้จัดกิจกรรม:** <@${data.host}>\n🏆 **จำนวนผู้โชคดี:** ${data.winnerCount} ท่าน\n----------------------------------------\n\n⏳ **เวลาที่เหลือ:**\n${createProgressBar(0)} 0%\nสิ้นสุดใน: <t:${discordTimestamp}:R>\n\n👇 **กด 🎁 ด้านล่างเพื่อเข้าร่วมกิจกรรม!**`);
+        await msg.edit({ embeds: [activeEmbed] });
+    } catch (e) { console.error(e); }
+
+    // ลูปอัปเดตหลอดความคืบหน้า
+    data.interval = setInterval(async () => {
+        const now = Date.now();
+        const passedTime = now - startTime;
+        let percent = Math.floor((passedTime / data.durationMs) * 100);
+        if (percent > 100) percent = 100;
+
+        try {
+            const msg = await channel.messages.fetch(msgId);
+            const updatedEmbed = EmbedBuilder.from(msg.embeds[0])
+                .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${data.prize}\n👑 **ผู้จัดกิจกรรม:** <@${data.host}>\n🏆 **จำนวนผู้โชคดี:** ${data.winnerCount} ท่าน\n----------------------------------------\n\n⏳ **เวลาที่เหลือ:**\n${createProgressBar(percent)} ${percent}%\nสิ้นสุดใน: <t:${discordTimestamp}:R>\n\n👇 **กด 🎁 ด้านล่างเพื่อเข้าร่วมกิจกรรม!**`);
+            await msg.edit({ embeds: [updatedEmbed] });
+        } catch (e) {
+            clearInterval(data.interval);
+        }
+    }, updateIntervalTime);
+
+    // เมื่อหมดเวลา
+    setTimeout(async () => {
+        clearInterval(data.interval); // หยุดลูปอัปเดตหลอด
+        const currentData = giveawayData.get(msgId);
+        if (!currentData) return;
+
+        const participants = currentData.participants;
+        let resultMessage = '';
+
+        try {
+            const msg = await channel.messages.fetch(msgId);
+            
+            // ปิดปุ่มกิจกรรม
+            const disabledButton = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('join_giveaway').setLabel('กิจกรรมสิ้นสุดแล้ว').setEmoji('🔒').setStyle(ButtonStyle.Secondary).setDisabled(true)
+            );
+
+            const finalEmbed = EmbedBuilder.from(msg.embeds[0])
+                .setTitle('🔒 กิจกรรมสิ้นสุดแล้ว! 🔒')
+                .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${currentData.prize}\n👑 **ผู้จัดกิจกรรม:** <@${currentData.host}>\n🏆 **จำนวนผู้โชคดี:** ${currentData.winnerCount} ท่าน\n----------------------------------------\n\n⏳ **สถานะ:** กิจกรรมจบลงแล้ว!\n${createProgressBar(100)} 100%`)
+                .setColor('#36393F');
+            
+            await msg.edit({ embeds: [finalEmbed], components: [disabledButton] });
+
+            // สุ่มผู้ชนะ
+            if (participants.length === 0) {
+                // จริงๆ กรณีนี้แทบไม่เกิด เพราะต้องมีคนกดก่อนถึงจะเริ่ม แต่ดักไว้ก่อนค่ะ
+                resultMessage = `อ่าว... ไม่มีใครเข้าร่วมกิจกรรมนี้เลยค่ะ 😢 ขอยกเลิกการแจกรางวัลนะคะ!`;
+                await channel.send({ content: resultMessage });
+            } else {
+                const actualWinnersCount = Math.min(currentData.winnerCount, participants.length);
+                const winners = [];
+                // สุ่มคนแบบไม่ซ้ำ
+                for (let i = 0; i < actualWinnersCount; i++) {
+                    const randomIndex = Math.floor(Math.random() * participants.length);
+                    winners.push(participants[randomIndex]);
+                    participants.splice(randomIndex, 1); 
+                }
+
+                const winnersMentions = winners.map(id => `<@${id}>`).join(', ');
+                
+                // สร้าง Embed ประกาศผลผู้ชนะ
+                const winEmbed = new EmbedBuilder()
+                    .setTitle('🎊 ยินดีด้วยกับผู้โชคดี! 🎊')
+                    .setDescription(`----------------------------------------\n🎁 **รางวัล:** ${currentData.prize}\n👤 **ผู้โชคดี:** ${winnersMentions}\n----------------------------------------\n\n📌 **วิธีรับรางวัล:**\nกรุณาติดต่อแอดมินหรือเปิด Ticket ที่ห้อง [คลิกเพื่อติดต่อรับรางวัล](https://discord.gg/AYby9ypmyy) เพื่อยืนยันตัวตนนะคะ 💖`)
+                    .setColor('#FFD700')
+                    .setImage('https://placehold.co/600x200/ffafbd/ffffff?text=WINNER')
+                    .setFooter({ text: 'Zemon Źx Bot • ระบบสุ่มผู้โชคดีคุณภาพ' });
+
+                const announceMsg = await channel.send({ content: `🎉 ยินดีด้วยครับ! ${winnersMentions} คุณได้รับ **${currentData.prize}** !`, embeds: [winEmbed] });
+
+                // ตั้งเวลาลบข้อความในอีก 10 ชั่วโมง
+                setTimeout(() => {
+                    msg.delete().catch(console.error);
+                    announceMsg.delete().catch(console.error);
+                    giveawayData.delete(msgId); 
+                }, 36000000); 
+            }
+        } catch (e) { console.error("หาข้อความกิจกรรมไม่เจอตอนจบ:", e); }
+    }, data.durationMs);
 }
 
 // ==========================================
@@ -191,13 +292,10 @@ client.on('interactionCreate', async interaction => {
             if (!durationMs) return interaction.reply({ content: 'รูปแบบเวลาไม่ถูกต้องค่ะซีม่อน (ตัวอย่างที่ถูก: 10s, 5m, 1h, 1d) ❌', ephemeral: true });
             if (winnerCount < 1 || winnerCount > 5) return interaction.reply({ content: 'กำหนดผู้ชนะได้ 1 - 5 คนเท่านั้นนะคะ! ❌', ephemeral: true });
 
-            const endTime = Date.now() + durationMs;
-            const discordTimestamp = Math.floor(endTime / 1000); // สำหรับแท็ก <t:...:R> ของดิสคอร์ด
-
-            // สร้างข้อความ Embed สำหรับกิจกรรม
+            // สร้างข้อความ Embed สำหรับกิจกรรม (แบบรอคนกดคนแรก)
             const embed = new EmbedBuilder()
                 .setTitle('🎉 ZEMON ŹX : GIVEAWAY EVENT 🎉')
-                .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัดกิจกรรม:** <@${SIMON_ID}>\n🏆 **จำนวนผู้โชคดี:** ${winnerCount} ท่าน\n----------------------------------------\n\n⏳ **เวลาที่เหลือ:**\n${createProgressBar(0)} 0%\nสิ้นสุดใน: <t:${discordTimestamp}:R>\n\n👇 **กด 🎁 ด้านล่างเพื่อเข้าร่วมกิจกรรม!**`)
+                .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัดกิจกรรม:** <@${SIMON_ID}>\n🏆 **จำนวนผู้โชคดี:** ${winnerCount} ท่าน\n----------------------------------------\n\n⏳ **เวลาที่เหลือ:**\n${createProgressBar(0)} 0%\nสิ้นสุดใน: ⏳ **รอคนเข้าร่วมคนแรก...**\n\n👇 **กด 🎁 ด้านล่างเพื่อเข้าร่วมและเริ่มจับเวลา!**`)
                 .setColor('#FF0000')
                 .setThumbnail('https://placehold.co/400x300/ff0000/ffffff?text=GIVEAWAY') // รูปของแจก
                 .setFooter({ text: 'Zemon Źx Bot • ผู้มอบความสุขให้คุณ 💖' });
@@ -206,87 +304,19 @@ client.on('interactionCreate', async interaction => {
                 new ButtonBuilder().setCustomId('join_giveaway').setLabel('เข้าร่วมกิจกรรม').setEmoji('🎁').setStyle(ButtonStyle.Success)
             );
 
-            await interaction.reply({ content: 'ปายสร้างกิจกรรมให้ซีม่อนเรียบร้อยแล้วค่ะ! 🎀', ephemeral: true });
+            await interaction.reply({ content: 'ปายสร้างกิจกรรมแบบรอคนเปิดให้เรียบร้อยแล้วค่ะ! 🎀', ephemeral: true });
             const giveawayMsg = await interaction.channel.send({ embeds: [embed], components: [button] });
 
-            // เตรียมข้อมูลเก็บไว้เช็ค
-            giveawayData.set(giveawayMsg.id, { participants: [], prize, winnerCount, host: SIMON_ID });
-
-            // สร้างลูปเพื่ออัปเดตหลอดความคืบหน้า (Progress Bar) ทุกๆ 1/10 ของเวลา (หรืออย่างน้อยทุก 5 วิ)
-            const updateIntervalTime = Math.max(durationMs / 10, 5000); 
-            const startTime = Date.now();
-            
-            const updateInterval = setInterval(async () => {
-                const now = Date.now();
-                const passedTime = now - startTime;
-                let percent = Math.floor((passedTime / durationMs) * 100);
-                if (percent > 100) percent = 100;
-
-                const updatedEmbed = EmbedBuilder.from(embed).setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัดกิจกรรม:** <@${SIMON_ID}>\n🏆 **จำนวนผู้โชคดี:** ${winnerCount} ท่าน\n----------------------------------------\n\n⏳ **เวลาที่เหลือ:**\n${createProgressBar(percent)} ${percent}%\nสิ้นสุดใน: <t:${discordTimestamp}:R>\n\n👇 **กด 🎁 ด้านล่างเพื่อเข้าร่วมกิจกรรม!**`);
-                
-                // เช็คว่าข้อความยังอยู่ไหมก่อนแก้อัปเดต
-                try {
-                    await giveawayMsg.edit({ embeds: [updatedEmbed] });
-                } catch (e) {
-                    clearInterval(updateInterval);
-                }
-            }, updateIntervalTime);
-
-            // เมื่อหมดเวลา
-            setTimeout(async () => {
-                clearInterval(updateInterval); // หยุดลูปอัปเดตหลอด
-                const data = giveawayData.get(giveawayMsg.id);
-                if (!data) return;
-
-                const participants = data.participants;
-                let resultMessage = '';
-                
-                // ปิดปุ่มกิจกรรม
-                const disabledButton = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('join_giveaway').setLabel('กิจกรรมสิ้นสุดแล้ว').setEmoji('🔒').setStyle(ButtonStyle.Secondary).setDisabled(true)
-                );
-
-                const finalEmbed = EmbedBuilder.from(embed)
-                    .setTitle('🔒 กิจกรรมสิ้นสุดแล้ว! 🔒')
-                    .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัดกิจกรรม:** <@${SIMON_ID}>\n🏆 **จำนวนผู้โชคดี:** ${winnerCount} ท่าน\n----------------------------------------\n\n⏳ **สถานะ:** กิจกรรมจบลงแล้ว!\n${createProgressBar(100)} 100%`)
-                    .setColor('#36393F');
-                
-                await giveawayMsg.edit({ embeds: [finalEmbed], components: [disabledButton] });
-
-                // สุ่มผู้ชนะ
-                if (participants.length === 0) {
-                    resultMessage = `อ่าว... ไม่มีใครเข้าร่วมกิจกรรมนี้เลยค่ะ 😢 ขอยกเลิกการแจกรางวัลนะคะ!`;
-                    await interaction.channel.send({ content: resultMessage });
-                } else {
-                    const actualWinnersCount = Math.min(winnerCount, participants.length);
-                    const winners = [];
-                    // สุ่มคนแบบไม่ซ้ำ
-                    for (let i = 0; i < actualWinnersCount; i++) {
-                        const randomIndex = Math.floor(Math.random() * participants.length);
-                        winners.push(participants[randomIndex]);
-                        participants.splice(randomIndex, 1); 
-                    }
-
-                    const winnersMentions = winners.map(id => `<@${id}>`).join(', ');
-                    
-                    // สร้าง Embed ประกาศผลผู้ชนะ
-                    const winEmbed = new EmbedBuilder()
-                        .setTitle('🎊 ยินดีด้วยกับผู้โชคดี! 🎊')
-                        .setDescription(`----------------------------------------\n🎁 **รางวัล:** ${prize}\n👤 **ผู้โชคดี:** ${winnersMentions}\n----------------------------------------\n\n📌 **วิธีรับรางวัล:**\nกรุณาติดต่อแอดมินหรือเปิด Ticket ที่ห้อง [คลิกเพื่อติดต่อรับรางวัล](https://discord.gg/AYby9ypmyy) เพื่อยืนยันตัวตนนะคะ 💖`)
-                        .setColor('#FFD700')
-                        .setImage('https://placehold.co/600x200/ffafbd/ffffff?text=WINNER')
-                        .setFooter({ text: 'Zemon Źx Bot • ระบบสุ่มผู้โชคดีคุณภาพ' });
-
-                    const announceMsg = await interaction.channel.send({ content: `🎉 ยินดีด้วยครับ! ${winnersMentions} คุณได้รับ **${prize}** !`, embeds: [winEmbed] });
-
-                    // ตั้งเวลาลบข้อความกิจกรรม และ ข้อความประกาศผล ในอีก 10 ชั่วโมง (36,000,000 ms)
-                    setTimeout(() => {
-                        giveawayMsg.delete().catch(console.error);
-                        announceMsg.delete().catch(console.error);
-                        giveawayData.delete(giveawayMsg.id); // ล้างหน่วยความจำ
-                    }, 36000000); 
-                }
-            }, durationMs);
+            // เก็บข้อมูลไว้รอกดเริ่ม (hasStarted = false)
+            giveawayData.set(giveawayMsg.id, { 
+                participants: [], 
+                prize, 
+                winnerCount, 
+                host: SIMON_ID,
+                durationMs: durationMs,
+                hasStarted: false,
+                interval: null
+            });
         }
     }
 
@@ -309,7 +339,14 @@ client.on('interactionCreate', async interaction => {
 
             // เพิ่มชื่อลงในรายการเข้าร่วม
             data.participants.push(userId);
-            await interaction.reply({ content: '🎉 คุณเข้าร่วมกิจกรรมเรียบร้อยแล้วค่ะ ขอให้โชคดีนะคะ! ✨', ephemeral: true });
+            
+            // ถ้ายังไม่เริ่มนับเวลา (มีคนกดคนแรก) ให้เริ่มนับเวลาเลย
+            if (!data.hasStarted) {
+                startGiveawayTimer(msgId, interaction.channel);
+                await interaction.reply({ content: '🎉 คุณคือคนแรกที่เข้าร่วม! กิจกรรมเริ่มนับเวลาถอยหลังแล้วค่ะ ขอให้โชคดีนะคะ! ✨', ephemeral: true });
+            } else {
+                await interaction.reply({ content: '🎉 คุณเข้าร่วมกิจกรรมเรียบร้อยแล้วค่ะ ขอให้โชคดีนะคะ! ✨', ephemeral: true });
+            }
         }
 
         // --- ส่วนของการเปิดทิกเก็ต ---
