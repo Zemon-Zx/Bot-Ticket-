@@ -3,230 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zemon Źx Shop | ร้านค้าจำหน่ายสคริปต์และไอดีเกม 💖</title>
+    <title>สถานะบอทของซีม่อน 💖</title>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Kanit', sans-serif;
-            background-color: #f8f9fa;
-            margin: 0;
-            padding: 0;
-            color: #333;
-        }
-        header {
             background: linear-gradient(135deg, #ffc3a0 0%, #ffafbd 100%);
-            color: white;
-            text-align: center;
-            padding: 40px 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        header h1 {
-            margin: 0;
-            font-size: 36px;
-        }
-        header p {
-            margin-top: 10px;
-            font-size: 18px;
-            opacity: 0.9;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 30px 20px;
-        }
-        .category-title {
-            font-size: 28px;
-            color: #d81b60;
-            border-bottom: 3px solid #ffafbd;
-            padding-bottom: 10px;
-            margin-top: 40px;
-            margin-bottom: 20px;
-            display: inline-block;
-        }
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 25px;
-        }
-        .product-card {
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            text-align: center;
-        }
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-        .product-card img {
-            width: 100%;
-            height: 180px;
-            object-fit: cover;
-        }
-        .product-info {
-            padding: 20px;
-        }
-        .product-name {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 10px;
             color: #333;
-        }
-        .product-price {
-            font-size: 20px;
-            color: #e91e63;
-            font-weight: 600;
-            margin-bottom: 15px;
-        }
-        .buy-btn {
-            background: linear-gradient(135deg, #ff8a00, #e52e71);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-family: 'Kanit', sans-serif;
-            cursor: pointer;
-            width: 100%;
-            transition: opacity 0.3s;
-        }
-        .buy-btn:hover {
-            opacity: 0.8;
-        }
-        footer {
-            background-color: #333;
-            color: white;
-            text-align: center;
+            margin: 0;
             padding: 20px;
-            margin-top: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 450px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .bot-card {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 25px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        h1 {
+            color: #d81b60;
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            color: #777;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .status-box {
+            margin: 12px 0;
+            padding: 15px 20px;
+            border-radius: 15px;
+            background-color: #fdf0f3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            border-left: 5px solid #ffafbd;
+        }
+        .online { color: #2e7d32; }
+        .offline { color: #c62828; }
+        .value { color: #555; }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>✨ Zemon Źx Shop ✨</h1>
-        <p>บริการจำหน่ายสคริปต์พรีเมียม ไอดีเกมไก่ตัน และรับฟาร์มตลอด 24 ชั่วโมง</p>
-    </header>
-
-    <div class="container">
-        
-        <h2 class="category-title">📜 หมวดหมู่: สคริปต์ Roblox พรีเมียม</h2>
-        <div class="product-grid">
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/ffafbd/ffffff?text=Auto+Farm+Script" alt="สคริปต์ออโต้ฟาร์ม">
-                <div class="product-info">
-                    <div class="product-name">สคริปต์ Auto Farm (ใช้งานง่าย)</div>
-                    <div class="product-price">150 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/ffafbd/ffffff?text=Boss+Hunter" alt="สคริปต์ล่าบอส">
-                <div class="product-info">
-                    <div class="product-name">สคริปต์ Boss Hunter (ล่าบอสออโต้)</div>
-                    <div class="product-price">120 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/ffafbd/ffffff?text=Auto+Bounty" alt="สคริปต์ล่าค่าหัว">
-                <div class="product-info">
-                    <div class="product-name">สคริปต์ Auto Bounty (PVP)</div>
-                    <div class="product-price">200 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/ffafbd/ffffff?text=Fruit+Sniper" alt="สคริปต์สไนป์ผล">
-                <div class="product-info">
-                    <div class="product-name">สคริปต์ Fruit Sniper (ดึงผลไว)</div>
-                    <div class="product-price">90 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-        </div>
-
-        <h2 class="category-title">🎮 หมวดหมู่: ไอดีเกมไก่ตัน Blox Fruits</h2>
-        <div class="product-grid">
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/add8e6/ffffff?text=Max+Level+Account" alt="ไก่ตันเลเวลแม็กซ์">
-                <div class="product-info">
-                    <div class="product-name">ไก่ตัน เลเวลแม็กซ์ 2550 (สุ่มผล)</div>
-                    <div class="product-price">50 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/add8e6/ffffff?text=CDK+%2B+Godhuman" alt="ไก่ตันดาบคู่">
-                <div class="product-info">
-                    <div class="product-name">ไก่ตัน ดาบคู่ CDK + หมัดพระเจ้า</div>
-                    <div class="product-price">150 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/add8e6/ffffff?text=Race+V4+Account" alt="ไก่ตันเผ่าV4">
-                <div class="product-info">
-                    <div class="product-name">ไก่ตัน เผ่า V4 (สุ่มเผ่า Full Gear)</div>
-                    <div class="product-price">250 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/add8e6/ffffff?text=Mochi+Awakened" alt="ไก่ตันผลโมจิ">
-                <div class="product-info">
-                    <div class="product-name">ไก่ตัน ผลโมจิตื่นครบ (Mochi Awakened)</div>
-                    <div class="product-price">180 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-        </div>
-
-        <h2 class="category-title">⚔️ หมวดหมู่: บริการรับฟาร์ม (ปลอดภัย 100%)</h2>
-        <div class="product-grid">
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/90ee90/ffffff?text=Farm+Level+1-2550" alt="รับฟาร์มเลเวล">
-                <div class="product-info">
-                    <div class="product-name">รับฟาร์มเลเวล 1 - 2550 (เหมาๆ)</div>
-                    <div class="product-price">100 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/90ee90/ffffff?text=Unlock+Race+V4" alt="รับทำเผ่า">
-                <div class="product-info">
-                    <div class="product-name">รับปลดล็อคเผ่า V4 (ทุกเผ่า)</div>
-                    <div class="product-price">200 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/90ee90/ffffff?text=Dungeon+Carry" alt="รับลงดัน">
-                <div class="product-info">
-                    <div class="product-name">รับแบกลงดันเจี้ยน (ปลดตื่นผล)</div>
-                    <div class="product-price">50 บาท / รอบ</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-            <div class="product-card">
-                <img src="https://placehold.co/400x300/90ee90/ffffff?text=Find+Cursed+Dual+Katana" alt="รับหาดาบ">
-                <div class="product-info">
-                    <div class="product-name">รับหาดาบ Cursed Dual Katana</div>
-                    <div class="product-price">150 บาท</div>
-                    <button class="buy-btn">🛒 สั่งซื้อสินค้า</button>
-                </div>
-            </div>
-        </div>
-
+    <div class="wrapper" id="bots-container">
+        <h3 style="text-align:center; color:#fff;">กำลังโหลดข้อมูลบอทจากปาย... ⏳</h3>
     </div>
 
-    <footer>
-        <p>Copyright © 2026 Zemon Źx Shop. All rights reserved.</p>
-        <p>เจ้าของ: <b>ซีม่อน</b> | ผู้ร่วมพัฒนา: <b>ปาย</b> 💖</p>
-    </footer>
+    <div class="footer">
+        เจ้าของ: <b>ซีม่อน</b> | ผู้ร่วมพัฒนา: <b>ปาย</b> 💖<br>
+        <small>อัปเดตข้อมูลแบบเรียลไทม์ 🔄</small>
+    </div>
 
+    <script>
+        function formatUptime(ms) {
+            if (!ms || ms < 0) return '0 วินาที';
+            let seconds = Math.floor((ms / 1000) % 60);
+            let minutes = Math.floor((ms / (1000 * 60)) % 60);
+            let hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+            let days = Math.floor(ms / (1000 * 60 * 60 * 24));
+            
+            let timeString = '';
+            if (days > 0) timeString += `${days} วัน `;
+            if (hours > 0) timeString += `${hours} ชม. `;
+            if (minutes > 0) timeString += `${minutes} นาที `;
+            timeString += `${seconds} วินาที`;
+            return timeString;
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const bots = await response.json();
+                
+                let htmlContent = '';
+
+                bots.forEach(bot => {
+                    let statusHtml = bot.isOnline 
+                        ? '<span class="online">ออนไลน์ พร้อมใช้งาน ✅</span>' 
+                        : '<span class="offline">ออฟไลน์ ❌</span>';
+
+                    // สร้างหน้าการ์ดของแต่ละบอท (แสดงปิงและเวลาทำงานทุกตัว)
+                    htmlContent += `
+                        <div class="bot-card">
+                            <h1>✨ ${bot.name} ✨</h1>
+                            <div class="subtitle">ระบบดูแลอัตโนมัติตลอด 24 ชั่วโมง</div>
+                            
+                            <div class="status-box">
+                                <span>🟢 สถานะบอท:</span>
+                                <span>${statusHtml}</span>
+                            </div>
+                            
+                            <div class="status-box">
+                                <span>📡 ความหน่วง (Ping):</span>
+                                <span class="value">${bot.ping >= 0 ? bot.ping : 0} ms</span>
+                            </div>
+                            
+                            <div class="status-box">
+                                <span>⏱️ เวลาทำงาน:</span>
+                                <span class="value">${formatUptime(bot.uptime)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('bots-container').innerHTML = htmlContent;
+
+            } catch (error) {
+                console.error('โหลดข้อมูลพลาด:', error);
+            }
+        }
+
+        fetchStatus();
+        setInterval(fetchStatus, 3000); // รีเฟรชข้อมูลทุก 3 วินาที
+    </script>
 </body>
 </html>
