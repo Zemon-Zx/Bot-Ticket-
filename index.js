@@ -175,7 +175,6 @@ async function startGiveawayTimer(msgId, channel) {
 
             // สุ่มผู้ชนะ
             if (participants.length === 0) {
-                // จริงๆ กรณีนี้แทบไม่เกิด เพราะต้องมีคนกดก่อนถึงจะเริ่ม แต่ดักไว้ก่อนค่ะ
                 resultMessage = `อ่าว... ไม่มีใครเข้าร่วมกิจกรรมนี้เลยค่ะ 😢 ขอยกเลิกการแจกรางวัลนะคะ!`;
                 await channel.send({ content: resultMessage });
             } else {
@@ -234,6 +233,30 @@ client.on('ready', async () => {
                 { name: 'prize', description: 'ใส่ชื่อของรางวัลที่จะแจก', type: 3, required: true },
                 { name: 'duration', description: 'ระยะเวลา (ตัวอย่าง: 10s, 5m, 1h, 2d)', type: 3, required: true },
                 { name: 'winners', description: 'จำนวนผู้ชนะ (1-5 คน)', type: 4, required: true }
+            ]
+        },
+        {
+            name: 'announce',
+            description: 'ส่งข้อความประกาศแบบ Embed สุดหรู (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            options: [
+                {
+                    name: 'channel',
+                    description: 'เลือกห้องที่ต้องการให้บอทส่งประกาศ',
+                    type: 7, // CHANNEL
+                    required: true
+                },
+                {
+                    name: 'title',
+                    description: 'หัวข้อประกาศ',
+                    type: 3, // STRING
+                    required: true
+                },
+                {
+                    name: 'message',
+                    description: 'เนื้อหาประกาศ (พิมพ์ \\n ถ้าต้องการขึ้นบรรทัดใหม่นะคะ)',
+                    type: 3, // STRING
+                    required: true
+                }
             ]
         }
     ];
@@ -317,6 +340,38 @@ client.on('interactionCreate', async interaction => {
                 hasStarted: false,
                 interval: null
             });
+        }
+
+        // --- คำสั่งประกาศข่าวสาร (Announce) ---
+        if (interaction.commandName === 'announce') {
+            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนใช้ได้นะคะ! 🥺', ephemeral: true });
+
+            const targetChannel = interaction.options.getChannel('channel');
+            const title = interaction.options.getString('title');
+            // รับข้อความและแปลง \n ให้เป็นการขึ้นบรรทัดใหม่จริงๆ
+            const message = interaction.options.getString('message').replace(/\\n/g, '\n');
+
+            // ตรวจสอบว่าเป็นช่อง Text Channel หรือเปล่า (กันเอาไปใช้กับห้องเสียง)
+            if (targetChannel.type !== ChannelType.GuildText && targetChannel.type !== ChannelType.GuildAnnouncement) {
+                 return interaction.reply({ content: 'ต้องเลือกห้องที่เป็นประเภทข้อความ (Text Channel) เท่านั้นนะคะซีม่อน! ❌', ephemeral: true });
+            }
+
+            // สร้างการ์ดสวยๆ โทนสีแดงดำ
+            const embed = new EmbedBuilder()
+                .setTitle(`📢 ${title}`)
+                .setDescription(message)
+                .setColor('#FF0000') // สีแดงเท่ๆ ตามสไตล์ร้าน Zemon
+                .setTimestamp()
+                .setFooter({ text: 'Zemon Źx Official', iconURL: interaction.guild.iconURL() || 'https://placehold.co/100x100/ff0000/ffffff?text=Z' });
+
+            try {
+                // ส่งประกาศไปที่ห้องที่เลือก
+                await targetChannel.send({ embeds: [embed] });
+                await interaction.reply({ content: `✅ ปายส่งประกาศไปที่ห้อง ${targetChannel} เรียบร้อยแล้วค่ะซีม่อน! 🎉`, ephemeral: true });
+            } catch (error) {
+                console.error(error);
+                await interaction.reply({ content: 'ปายส่งข้อความไม่ได้ค่ะ เช็คสิทธิ์บอทในห้องนั้นให้ปายหน่อยน้า 🥺', ephemeral: true });
+            }
         }
     }
 
