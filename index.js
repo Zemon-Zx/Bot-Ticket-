@@ -220,11 +220,12 @@ client.on('ready', async () => {
         },
         {
             name: 'announce',
-            description: 'ส่งข้อความประกาศแบบ Embed',
+            description: 'ส่งข้อความประกาศแบบ Embed (เลือกรูปได้)',
             options: [
                 { name: 'channel', description: 'เลือกช่องที่จะโพสต์', type: 7, required: true },
                 { name: 'title', description: 'หัวข้อประกาศ', type: 3, required: true },
                 { name: 'message', description: 'เนื้อหา (พิมพ์ \\n เพื่อขึ้นบรรทัดใหม่)', type: 3, required: true },
+                { name: 'image', description: 'ใส่ Link รูปภาพ (เลือกได้)', type: 3, required: false },
                 { name: 'color', description: 'โค้ดสี Hex (เช่น #ff0000) ถ้าไม่ใส่จะเป็นสีขาว', type: 3, required: false }
             ]
         }
@@ -278,7 +279,7 @@ client.on('interactionCreate', async interaction => {
 
             const embed = new EmbedBuilder()
                 .setTitle('🎉 ZEMON ŹX : GIVEAWAY EVENT 🎉')
-                .setDescription(`💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัด:** <@${SIMON_ID}>\n🏆 **ผู้โชคดี:** ${winnerCount} ท่าน\n\n⏳ **รอคนเข้าร่วมคนแรกเพื่อเริ่มนับเวลา...**`)
+                .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัด:** <@${SIMON_ID}>\n🏆 **ผู้โชคดี:** ${winnerCount} ท่าน\n\n⏳ **รอคนเข้าร่วมคนแรกเพื่อเริ่มนับเวลา...**`)
                 .setColor('#FF0000')
                 .setFooter({ text: 'Zemon Źx Bot' });
 
@@ -294,11 +295,12 @@ client.on('interactionCreate', async interaction => {
             });
         }
 
-        // --- Announce ---
+        // --- Announce (ปรับปรุงใหม่!) ---
         if (interaction.commandName === 'announce') {
             const targetChannel = interaction.options.getChannel('channel');
             const title = interaction.options.getString('title');
             const message = interaction.options.getString('message').replace(/\\n/g, '\n');
+            const imageUrl = interaction.options.getString('image');
             const colorInput = interaction.options.getString('color') || '#FFFFFF';
 
             if (targetChannel.type !== ChannelType.GuildText && targetChannel.type !== ChannelType.GuildAnnouncement) {
@@ -310,14 +312,19 @@ client.on('interactionCreate', async interaction => {
                 .setDescription(message)
                 .setColor(colorInput.startsWith('#') ? colorInput : `#${colorInput}`)
                 .setTimestamp()
-                .setFooter({ text: 'Zemon Źx Official' });
+                .setFooter({ text: 'Zemon Źx Official', iconURL: interaction.guild.iconURL() });
+
+            // เพิ่มรูปภาพถ้าซีม่อนใส่ Link มา
+            if (imageUrl) {
+                embed.setImage(imageUrl);
+            }
 
             try {
                 // ส่ง Tag @everyone แบบซ่อนในแถบสีดำ
                 await targetChannel.send({ content: `|| @everyone ||`, embeds: [embed] });
-                await interaction.reply({ content: `✅ ประกาศที่ห้อง ${targetChannel} เรียบร้อยแล้วค่ะ!`, ephemeral: true });
+                await interaction.reply({ content: `✅ ประกาศที่ห้อง ${targetChannel} เรียบร้อยแล้วค่ะซีม่อน! 🎉`, ephemeral: true });
             } catch (e) {
-                await interaction.reply({ content: 'บอทไม่มีสิทธิ์ส่งข้อความในห้องนั้นค่ะ!', ephemeral: true });
+                await interaction.reply({ content: 'บอทไม่มีสิทธิ์ส่งข้อความในห้องนั้นค่ะ! ลองเช็คสิทธิ์ให้ปายหน่อยน้า 🥺', ephemeral: true });
             }
         }
     }
@@ -342,8 +349,8 @@ client.on('interactionCreate', async interaction => {
                 type: ChannelType.GuildText,
                 permissionOverwrites: [
                     { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                    { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-                    { id: SIMON_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+                    { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                    { id: SIMON_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
                 ],
             });
             const embed = new EmbedBuilder().setTitle(`สวัสดีค่ะคุณ ${user.username}`).setDescription('รอสักครู่ เดี๋ยวซีม่อนจะมาดูแลนะคะ 🎀').setColor('#ADD8E6');
