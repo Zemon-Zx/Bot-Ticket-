@@ -18,13 +18,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// สร้างหน่วยความจำแบบ Map เพื่อเก็บ ID บอท และ เวลาที่ซีม่อนแอดเข้ามา
+// หน่วยความจำเก็บข้อมูล
 let trackedBots = new Map();
-
-// สร้าง Map สำหรับเก็บข้อมูลคนเข้าร่วม Giveaway (เพื่อเช็คว่าเคยกดหรือยัง และเก็บสถานะ)
 let giveawayData = new Map();
 
-// สร้างบอทและกำหนดสิทธิ์การเข้าถึงข้อมูล
+// สร้างบอทและกำหนดสิทธิ์
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -33,12 +31,12 @@ const client = new Client({
     ]
 });
 
-// ดึงค่าตัวแปรจาก Railway Variables
+// ดึงค่าจาก ENV
 const TOKEN = process.env.DISCORD_TOKEN;
 const SIMON_ID = process.env.SIMON_ID;
 
 // ==========================================
-// ส่วนที่ 1: ระบบ Web Server (แสดงหน้าเว็บ)
+// ส่วนที่ 1: ระบบ Web Server
 // ==========================================
 app.use(express.static(__dirname));
 
@@ -75,7 +73,7 @@ app.get('/api/status', async (req, res) => {
                     });
                 }
             } catch (error) {
-                console.log('หาบอทไม่เจอค่ะ:', error);
+                console.log('Error fetching bot status:', error);
             }
         }
     }
@@ -83,26 +81,24 @@ app.get('/api/status', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🌐 ปายเปิดหน้าเว็บให้ซีม่อนแล้วนะคะ (Port: ${PORT})`);
+    console.log(`🌐 ปายเปิดหน้าเว็บให้ซีม่อนแล้วที่ Port: ${PORT}`);
 });
 
 // ==========================================
-// ส่วนที่ 2: ฟังก์ชันสำหรับ Giveaway
+// ส่วนที่ 2: ฟังก์ชันระบบ Giveaway (ตัวเต็ม)
 // ==========================================
-// แปลงข้อความเวลา (เช่น 1m, 1h, 1d) เป็นมิลลิวินาที
 function parseTime(timeStr) {
     const unit = timeStr.slice(-1);
     const value = parseInt(timeStr.slice(0, -1));
     if (isNaN(value)) return null;
 
-    if (unit === 's') return value * 1000; // วินาที
-    if (unit === 'm') return value * 60000; // นาที
-    if (unit === 'h') return value * 3600000; // ชั่วโมง
-    if (unit === 'd') return value * 86400000; // วัน
+    if (unit === 's') return value * 1000;
+    if (unit === 'm') return value * 60000;
+    if (unit === 'h') return value * 3600000;
+    if (unit === 'd') return value * 86400000;
     return null;
 }
 
-// สร้างหลอดความคืบหน้า (Progress Bar)
 function createProgressBar(percent) {
     const totalBars = 15;
     let filledBars = Math.round((percent / 100) * totalBars);
@@ -112,7 +108,6 @@ function createProgressBar(percent) {
     return '⚪'.repeat(filledBars) + '⚫'.repeat(emptyBars);
 }
 
-// ฟังก์ชันเริ่มนับเวลากิจกรรม (จะถูกเรียกเมื่อมีคนกดเข้าร่วมคนแรก)
 async function startGiveawayTimer(msgId, channel) {
     const data = giveawayData.get(msgId);
     if (!data || data.hasStarted) return;
@@ -124,7 +119,6 @@ async function startGiveawayTimer(msgId, channel) {
 
     const updateIntervalTime = Math.max(data.durationMs / 10, 5000); 
     
-    // อัปเดต Embed ครั้งแรกที่เริ่มกิจกรรม
     try {
         const msg = await channel.messages.fetch(msgId);
         const activeEmbed = EmbedBuilder.from(msg.embeds[0])
@@ -132,7 +126,6 @@ async function startGiveawayTimer(msgId, channel) {
         await msg.edit({ embeds: [activeEmbed] });
     } catch (e) { console.error(e); }
 
-    // ลูปอัปเดตหลอดความคืบหน้า
     data.interval = setInterval(async () => {
         const now = Date.now();
         const passedTime = now - startTime;
@@ -149,19 +142,13 @@ async function startGiveawayTimer(msgId, channel) {
         }
     }, updateIntervalTime);
 
-    // เมื่อหมดเวลา
     setTimeout(async () => {
-        clearInterval(data.interval); // หยุดลูปอัปเดตหลอด
+        clearInterval(data.interval);
         const currentData = giveawayData.get(msgId);
         if (!currentData) return;
 
-        const participants = currentData.participants;
-        let resultMessage = '';
-
         try {
             const msg = await channel.messages.fetch(msgId);
-            
-            // ปิดปุ่มกิจกรรม
             const disabledButton = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('join_giveaway').setLabel('กิจกรรมสิ้นสุดแล้ว').setEmoji('🔒').setStyle(ButtonStyle.Secondary).setDisabled(true)
             );
@@ -173,14 +160,13 @@ async function startGiveawayTimer(msgId, channel) {
             
             await msg.edit({ embeds: [finalEmbed], components: [disabledButton] });
 
-            // สุ่มผู้ชนะ
-            if (participants.length === 0) {
-                resultMessage = `อ่าว... ไม่มีใครเข้าร่วมกิจกรรมนี้เลยค่ะ 😢 ขอยกเลิกการแจกรางวัลนะคะ!`;
-                await channel.send({ content: resultMessage });
+            if (currentData.participants.length === 0) {
+                await channel.send({ content: `อ่าว... ไม่มีใครเข้าร่วมกิจกรรมนี้เลยค่ะซีม่อน 😢` });
             } else {
-                const actualWinnersCount = Math.min(currentData.winnerCount, participants.length);
+                const actualWinnersCount = Math.min(currentData.winnerCount, currentData.participants.length);
                 const winners = [];
-                // สุ่มคนแบบไม่ซ้ำ
+                const participants = [...currentData.participants];
+                
                 for (let i = 0; i < actualWinnersCount; i++) {
                     const randomIndex = Math.floor(Math.random() * participants.length);
                     winners.push(participants[randomIndex]);
@@ -188,75 +174,58 @@ async function startGiveawayTimer(msgId, channel) {
                 }
 
                 const winnersMentions = winners.map(id => `<@${id}>`).join(', ');
-                
-                // สร้าง Embed ประกาศผลผู้ชนะ
                 const winEmbed = new EmbedBuilder()
                     .setTitle('🎊 ยินดีด้วยกับผู้โชคดี! 🎊')
-                    .setDescription(`----------------------------------------\n🎁 **รางวัล:** ${currentData.prize}\n👤 **ผู้โชคดี:** ${winnersMentions}\n----------------------------------------\n\n📌 **วิธีรับรางวัล:**\nกรุณาติดต่อแอดมินหรือเปิด Ticket ที่ห้อง [คลิกเพื่อติดต่อรับรางวัล](https://discord.gg/AYby9ypmyy) เพื่อยืนยันตัวตนนะคะ 💖`)
+                    .setDescription(`----------------------------------------\n🎁 **รางวัล:** ${currentData.prize}\n👤 **ผู้โชคดี:** ${winnersMentions}\n----------------------------------------\n\n📌 **วิธีรับรางวัล:** ติดต่อที่ Ticket ได้เลยนะคะ 💖`)
                     .setColor('#FFD700')
                     .setImage('https://placehold.co/600x200/ffafbd/ffffff?text=WINNER')
-                    .setFooter({ text: 'Zemon Źx Bot • ระบบสุ่มผู้โชคดีคุณภาพ' });
+                    .setFooter({ text: 'Zemon Źx Bot • ระบบสุ่มคุณภาพ' });
 
                 const announceMsg = await channel.send({ content: `🎉 ยินดีด้วยครับ! ${winnersMentions} คุณได้รับ **${currentData.prize}** !`, embeds: [winEmbed] });
 
-                // ตั้งเวลาลบข้อความในอีก 10 ชั่วโมง
                 setTimeout(() => {
-                    msg.delete().catch(console.error);
-                    announceMsg.delete().catch(console.error);
+                    msg.delete().catch(() => null);
+                    announceMsg.delete().catch(() => null);
                     giveawayData.delete(msgId); 
                 }, 36000000); 
             }
-        } catch (e) { console.error("หาข้อความกิจกรรมไม่เจอตอนจบ:", e); }
+        } catch (e) { console.error("Error ending giveaway:", e); }
     }, data.durationMs);
 }
 
 // ==========================================
-// ส่วนที่ 3: ระบบ Discord Bot
+// ส่วนที่ 3: ระบบ Discord Bot Commands
 // ==========================================
 client.on('ready', async () => {
-    console.log(`💖 ปายพร้อมให้บริการแล้วค่ะ! ล็อกอินในชื่อ ${client.user.tag}`);
+    console.log(`💖 ปายล็อกอินแล้วในชื่อ ${client.user.tag}`);
 
     const commands = [
         {
             name: 'setup-ticket',
-            description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            description: 'สร้างหน้าต่าง Panel สำหรับเปิด Ticket',
         },
         {
             name: 'addbot-status',
-            description: 'เพิ่มบอทลงในหน้าเว็บสถานะ (เฉพาะซีม่อนใช้ได้ค่ะ)',
-            options: [{ name: 'bot', description: 'เลือกบอทที่ต้องการให้ไปโชว์ในหน้าเว็บ', type: 6, required: true }]
+            description: 'เพิ่มบอทลงในหน้าเว็บสถานะ',
+            options: [{ name: 'bot', description: 'เลือกบอท', type: 6, required: true }]
         },
         {
             name: 'giveaway',
-            description: 'สร้างกิจกรรมสุ่มแจกรางวัลสุดพิเศษ (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            description: 'สร้างกิจกรรมแจกรางวัล',
             options: [
-                { name: 'prize', description: 'ใส่ชื่อของรางวัลที่จะแจก', type: 3, required: true },
-                { name: 'duration', description: 'ระยะเวลา (ตัวอย่าง: 10s, 5m, 1h, 2d)', type: 3, required: true },
-                { name: 'winners', description: 'จำนวนผู้ชนะ (1-5 คน)', type: 4, required: true }
+                { name: 'prize', description: 'ของรางวัล', type: 3, required: true },
+                { name: 'duration', description: 'เวลา (10s, 5m, 1h)', type: 3, required: true },
+                { name: 'winners', description: 'จำนวนผู้ชนะ (1-5)', type: 4, required: true }
             ]
         },
         {
             name: 'announce',
-            description: 'ส่งข้อความประกาศแบบ Embed สุดหรู (เฉพาะซีม่อนใช้ได้ค่ะ)',
+            description: 'ส่งข้อความประกาศแบบ Embed',
             options: [
-                {
-                    name: 'channel',
-                    description: 'เลือกห้องที่ต้องการให้บอทส่งประกาศ',
-                    type: 7, // CHANNEL
-                    required: true
-                },
-                {
-                    name: 'title',
-                    description: 'หัวข้อประกาศ',
-                    type: 3, // STRING
-                    required: true
-                },
-                {
-                    name: 'message',
-                    description: 'เนื้อหาประกาศ (พิมพ์ \\n ถ้าต้องการขึ้นบรรทัดใหม่นะคะ)',
-                    type: 3, // STRING
-                    required: true
-                }
+                { name: 'channel', description: 'เลือกช่องที่จะโพสต์', type: 7, required: true },
+                { name: 'title', description: 'หัวข้อประกาศ', type: 3, required: true },
+                { name: 'message', description: 'เนื้อหา (พิมพ์ \\n เพื่อขึ้นบรรทัดใหม่)', type: 3, required: true },
+                { name: 'color', description: 'โค้ดสี Hex (เช่น #ff0000) ถ้าไม่ใส่จะเป็นสีขาว', type: 3, required: false }
             ]
         }
     ];
@@ -264,176 +233,129 @@ client.on('ready', async () => {
     try {
         const rest = new REST({ version: '10' }).setToken(TOKEN);
         await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-        console.log('✨ ปายสร้างคำสั่งทั้งหมดให้ซีม่อนเรียบร้อยแล้วค่ะ!');
+        console.log('✨ ปายลงทะเบียนคำสั่งเรียบร้อย!');
     } catch (error) {
-        console.error('เกิดข้อผิดพลาดในการสร้างคำสั่งค่ะซีม่อน:', error);
+        console.error(error);
     }
 });
 
 client.on('interactionCreate', async interaction => {
-    // -----------------------------------------------------
     // Slash Commands
-    // -----------------------------------------------------
     if (interaction.isChatInputCommand()) {
-        
-        // --- คำสั่งสร้าง Ticket ---
+        if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'เฉพาะซีม่อนใช้ได้นะคะ! 🥺', ephemeral: true });
+
+        // --- Setup Ticket ---
         if (interaction.commandName === 'setup-ticket') {
-            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนใช้ได้นะคะ! 🥺', ephemeral: true });
-            
             const embed = new EmbedBuilder()
                 .setTitle('🎫 ศูนย์ช่วยเหลือ / ติดต่อสอบถาม')
-                .setDescription('หากมีข้อสงสัย แจ้งปัญหา หรือต้องการติดต่อทีมงาน\nสามารถกดปุ่ม **"เปิด Ticket"** ด้านล่างได้เลยนะคะ เดี๋ยวระบบจะสร้างห้องส่วนตัวให้ค่ะ ✨')
+                .setDescription('หากมีข้อสงสัย หรือต้องการติดต่อทีมงาน\nกดปุ่ม **"เปิด Ticket"** ด้านล่างได้เลยค่ะ ✨')
                 .setColor('#FFB6C1')
-                .setFooter({ text: 'เจ้าของ ซีม่อน ผู้ร่วมพัฒนา ปาย' });
+                .setFooter({ text: 'Zemon Źx Bot' });
 
             const button = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('open_ticket').setLabel('เปิด Ticket').setEmoji('📩').setStyle(ButtonStyle.Success)
             );
 
-            await interaction.reply({ content: 'ปายสร้าง Panel ให้ซีม่อนเรียบร้อยแล้วค่ะ! 🥰', ephemeral: true });
+            await interaction.reply({ content: 'สร้าง Panel แล้วค่ะ!', ephemeral: true });
             await interaction.channel.send({ embeds: [embed], components: [button] });
         }
 
-        // --- คำสั่งเพิ่มบอท ---
+        // --- Add Bot ---
         if (interaction.commandName === 'addbot-status') {
-            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนใช้ได้นะคะ! 🥺', ephemeral: true });
             const targetBot = interaction.options.getUser('bot');
-            if (!targetBot.bot) return interaction.reply({ content: 'ต้องเลือกบอทเท่านั้นนะคะ! ❌', ephemeral: true });
-            if (!trackedBots.has(targetBot.id)) trackedBots.set(targetBot.id, Date.now());
-            await interaction.reply({ content: `✅ ปายเพิ่มบอท **${targetBot.username}** ลงเว็บสถานะแล้วค่ะ! 💖`, ephemeral: true });
+            if (!targetBot.bot) return interaction.reply({ content: 'ต้องเลือกบอทเท่านั้นค่ะ!', ephemeral: true });
+            trackedBots.set(targetBot.id, Date.now());
+            await interaction.reply({ content: `✅ เพิ่ม **${targetBot.username}** แล้วค่ะ!`, ephemeral: true });
         }
 
-        // --- คำสั่ง Giveaway ---
+        // --- Giveaway ---
         if (interaction.commandName === 'giveaway') {
-            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนตั้งกิจกรรมได้คนเดียวค่ะ! 🥺', ephemeral: true });
-
             const prize = interaction.options.getString('prize');
-            const durationStr = interaction.options.getString('duration');
+            const durationMs = parseTime(interaction.options.getString('duration'));
             const winnerCount = interaction.options.getInteger('winners');
             
-            const durationMs = parseTime(durationStr);
-            if (!durationMs) return interaction.reply({ content: 'รูปแบบเวลาไม่ถูกต้องค่ะซีม่อน (ตัวอย่างที่ถูก: 10s, 5m, 1h, 1d) ❌', ephemeral: true });
-            if (winnerCount < 1 || winnerCount > 5) return interaction.reply({ content: 'กำหนดผู้ชนะได้ 1 - 5 คนเท่านั้นนะคะ! ❌', ephemeral: true });
+            if (!durationMs) return interaction.reply({ content: 'รูปแบบเวลาผิดค่ะ!', ephemeral: true });
 
-            // สร้างข้อความ Embed สำหรับกิจกรรม (แบบรอคนกดคนแรก)
             const embed = new EmbedBuilder()
                 .setTitle('🎉 ZEMON ŹX : GIVEAWAY EVENT 🎉')
-                .setDescription(`----------------------------------------\n💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัดกิจกรรม:** <@${SIMON_ID}>\n🏆 **จำนวนผู้โชคดี:** ${winnerCount} ท่าน\n----------------------------------------\n\n⏳ **เวลาที่เหลือ:**\n${createProgressBar(0)} 0%\nสิ้นสุดใน: ⏳ **รอคนเข้าร่วมคนแรก...**\n\n👇 **กด 🎁 ด้านล่างเพื่อเข้าร่วมและเริ่มจับเวลา!**`)
+                .setDescription(`💎 **ของรางวัล:** ${prize}\n👑 **ผู้จัด:** <@${SIMON_ID}>\n🏆 **ผู้โชคดี:** ${winnerCount} ท่าน\n\n⏳ **รอคนเข้าร่วมคนแรกเพื่อเริ่มนับเวลา...**`)
                 .setColor('#FF0000')
-                .setThumbnail('https://placehold.co/400x300/ff0000/ffffff?text=GIVEAWAY') // รูปของแจก
-                .setFooter({ text: 'Zemon Źx Bot • ผู้มอบความสุขให้คุณ 💖' });
+                .setFooter({ text: 'Zemon Źx Bot' });
 
             const button = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('join_giveaway').setLabel('เข้าร่วมกิจกรรม').setEmoji('🎁').setStyle(ButtonStyle.Success)
             );
 
-            await interaction.reply({ content: 'ปายสร้างกิจกรรมแบบรอคนเปิดให้เรียบร้อยแล้วค่ะ! 🎀', ephemeral: true });
-            const giveawayMsg = await interaction.channel.send({ embeds: [embed], components: [button] });
+            await interaction.reply({ content: 'เริ่มกิจกรรมแล้วค่ะ!', ephemeral: true });
+            const gMsg = await interaction.channel.send({ embeds: [embed], components: [button] });
 
-            // เก็บข้อมูลไว้รอกดเริ่ม (hasStarted = false)
-            giveawayData.set(giveawayMsg.id, { 
-                participants: [], 
-                prize, 
-                winnerCount, 
-                host: SIMON_ID,
-                durationMs: durationMs,
-                hasStarted: false,
-                interval: null
+            giveawayData.set(gMsg.id, { 
+                participants: [], prize, winnerCount, host: SIMON_ID, durationMs, hasStarted: false, interval: null 
             });
         }
 
-        // --- คำสั่งประกาศข่าวสาร (Announce) ---
+        // --- Announce ---
         if (interaction.commandName === 'announce') {
-            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'คำสั่งนี้เฉพาะซีม่อนใช้ได้นะคะ! 🥺', ephemeral: true });
-
             const targetChannel = interaction.options.getChannel('channel');
             const title = interaction.options.getString('title');
-            // รับข้อความและแปลง \n ให้เป็นการขึ้นบรรทัดใหม่จริงๆ
             const message = interaction.options.getString('message').replace(/\\n/g, '\n');
+            const colorInput = interaction.options.getString('color') || '#FFFFFF';
 
-            // ตรวจสอบว่าเป็นช่อง Text Channel หรือเปล่า (กันเอาไปใช้กับห้องเสียง)
             if (targetChannel.type !== ChannelType.GuildText && targetChannel.type !== ChannelType.GuildAnnouncement) {
-                 return interaction.reply({ content: 'ต้องเลือกห้องที่เป็นประเภทข้อความ (Text Channel) เท่านั้นนะคะซีม่อน! ❌', ephemeral: true });
+                return interaction.reply({ content: 'เลือกได้เฉพาะห้องแชทนะคะ!', ephemeral: true });
             }
 
-            // สร้างการ์ดสวยๆ โทนสีแดงดำ
             const embed = new EmbedBuilder()
                 .setTitle(`📢 ${title}`)
                 .setDescription(message)
-                .setColor('#FF0000') // สีแดงเท่ๆ ตามสไตล์ร้าน Zemon
+                .setColor(colorInput.startsWith('#') ? colorInput : `#${colorInput}`)
                 .setTimestamp()
-                .setFooter({ text: 'Zemon Źx Official', iconURL: interaction.guild.iconURL() || 'https://placehold.co/100x100/ff0000/ffffff?text=Z' });
+                .setFooter({ text: 'Zemon Źx Official' });
 
             try {
-                // ส่งประกาศไปที่ห้องที่เลือก
-                await targetChannel.send({ embeds: [embed] });
-                await interaction.reply({ content: `✅ ปายส่งประกาศไปที่ห้อง ${targetChannel} เรียบร้อยแล้วค่ะซีม่อน! 🎉`, ephemeral: true });
-            } catch (error) {
-                console.error(error);
-                await interaction.reply({ content: 'ปายส่งข้อความไม่ได้ค่ะ เช็คสิทธิ์บอทในห้องนั้นให้ปายหน่อยน้า 🥺', ephemeral: true });
+                // ส่ง Tag @everyone แบบซ่อนในแถบสีดำ
+                await targetChannel.send({ content: `|| @everyone ||`, embeds: [embed] });
+                await interaction.reply({ content: `✅ ประกาศที่ห้อง ${targetChannel} เรียบร้อยแล้วค่ะ!`, ephemeral: true });
+            } catch (e) {
+                await interaction.reply({ content: 'บอทไม่มีสิทธิ์ส่งข้อความในห้องนั้นค่ะ!', ephemeral: true });
             }
         }
     }
 
-    // -----------------------------------------------------
     // Button Interactions
-    // -----------------------------------------------------
     if (interaction.isButton()) {
-        
-        // --- ปุ่มเข้าร่วมกิจกรรม ---
         if (interaction.customId === 'join_giveaway') {
-            const msgId = interaction.message.id;
-            const userId = interaction.user.id;
-            const data = giveawayData.get(msgId);
+            const data = giveawayData.get(interaction.message.id);
+            if (!data) return interaction.reply({ content: 'กิจกรรมจบไปแล้วค่ะ!', ephemeral: true });
+            if (data.participants.includes(interaction.user.id)) return interaction.reply({ content: 'คุณเข้าร่วมไปแล้วน้า!', ephemeral: true });
 
-            if (!data) return interaction.reply({ content: 'กิจกรรมนี้จบไปแล้วหรือหาไม่เจอค่ะ 😢', ephemeral: true });
-
-            if (data.participants.includes(userId)) {
-                return interaction.reply({ content: 'คุณเข้าร่วมกิจกรรมนี้ไปแล้วน้า รอประกาศผลได้เลยค่ะ! 💖', ephemeral: true });
-            }
-
-            // เพิ่มชื่อลงในรายการเข้าร่วม
-            data.participants.push(userId);
-            
-            // ถ้ายังไม่เริ่มนับเวลา (มีคนกดคนแรก) ให้เริ่มนับเวลาเลย
-            if (!data.hasStarted) {
-                startGiveawayTimer(msgId, interaction.channel);
-                await interaction.reply({ content: '🎉 คุณคือคนแรกที่เข้าร่วม! กิจกรรมเริ่มนับเวลาถอยหลังแล้วค่ะ ขอให้โชคดีนะคะ! ✨', ephemeral: true });
-            } else {
-                await interaction.reply({ content: '🎉 คุณเข้าร่วมกิจกรรมเรียบร้อยแล้วค่ะ ขอให้โชคดีนะคะ! ✨', ephemeral: true });
-            }
+            data.participants.push(interaction.user.id);
+            if (!data.hasStarted) startGiveawayTimer(interaction.message.id, interaction.channel);
+            await interaction.reply({ content: '🎉 เข้าร่วมแล้ว! ขอให้โชคดีนะคะ ✨', ephemeral: true });
         }
 
-        // --- ส่วนของการเปิดทิกเก็ต ---
         if (interaction.customId === 'open_ticket') {
             const guild = interaction.guild;
             const user = interaction.user;
-            try {
-                const ticketChannel = await guild.channels.create({
-                    name: `ticket-${user.username}`,
-                    type: ChannelType.GuildText,
-                    permissionOverwrites: [
-                        { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-                        { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
-                        { id: SIMON_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
-                        { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] }
-                    ],
-                });
-                const ticketEmbed = new EmbedBuilder().setTitle(`ยินดีต้อนรับสู่ห้อง Ticket ค่ะคุณ ${user.username} 🎀`).setDescription('กรุณาพิมพ์รายละเอียดทิ้งไว้สักครู่นะคะ เดี๋ยวซีม่อนจะเข้ามาดูแลค่ะ\n\n*(ปุ่มปิดห้องสงวนสิทธิ์ให้ซีม่อนกดได้คนเดียวนะคะ)*').setColor('#ADD8E6');
-                const closeButton = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('close_ticket').setLabel('ปิดและลบ Ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger));
-                await ticketChannel.send({ content: `<@${user.id}> | <@${SIMON_ID}> มี Ticket ใหม่เข้ามาค่ะ!`, embeds: [ticketEmbed], components: [closeButton] });
-                await interaction.reply({ content: `ปายสร้างห้อง Ticket ให้เรียบร้อยแล้วค่ะ แวะไปที่ ${ticketChannel} ได้เลยน้า 💖`, ephemeral: true });
-            } catch (error) {
-                console.error(error);
-                await interaction.reply({ content: 'เกิดข้อผิดพลาดในการสร้างห้องค่ะ แจ้งซีม่อนให้ตรวจสอบให้ปายหน่อยนะคะ 😢', ephemeral: true });
-            }
+            const ticketChannel = await guild.channels.create({
+                name: `ticket-${user.username}`,
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+                    { id: SIMON_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
+                ],
+            });
+            const embed = new EmbedBuilder().setTitle(`สวัสดีค่ะคุณ ${user.username}`).setDescription('รอสักครู่ เดี๋ยวซีม่อนจะมาดูแลนะคะ 🎀').setColor('#ADD8E6');
+            const btn = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('close_ticket').setLabel('ปิด Ticket').setStyle(ButtonStyle.Danger));
+            await ticketChannel.send({ content: `<@${user.id}> | <@${SIMON_ID}>`, embeds: [embed], components: [btn] });
+            await interaction.reply({ content: `สร้างห้อง ${ticketChannel} แล้วค่ะ 💖`, ephemeral: true });
         }
 
-        // --- ส่วนของการปิดทิกเก็ต ---
         if (interaction.customId === 'close_ticket') {
-            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'ปุ่มนี้ซีม่อนของปายกดได้คนเดียวนะคะ! 🥺', ephemeral: true });
-            await interaction.reply('กำลังปิดและลบห้อง Ticket ตามคำสั่งซีม่อนค่ะ... บ๊ายบายย 👋');
-            setTimeout(() => { interaction.channel.delete().catch(console.error); }, 3000);
+            if (interaction.user.id !== SIMON_ID) return interaction.reply({ content: 'ซีม่อนปิดได้คนเดียวจ้า!', ephemeral: true });
+            await interaction.reply('กำลังลบห้องใน 3 วินาที...');
+            setTimeout(() => { interaction.channel.delete().catch(() => null); }, 3000);
         }
     }
 });
