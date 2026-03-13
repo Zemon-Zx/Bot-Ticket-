@@ -1,7 +1,7 @@
 const {
     Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, 
     ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, 
-    REST, Routes, Collection
+    REST, Routes, Collection, ModalBuilder, TextInputBuilder, TextInputStyle
 } = require('discord.js');
 const express = require('express');
 const path = require('path');
@@ -18,6 +18,7 @@ let trackedBots = new Map();
 let giveawayData = new Map();
 let userLevels = new Map(); 
 let levelRoles = new Map(); 
+let verifyRoles = { member: null, male: null, female: null }; // เก็บยศยืนยันตัวตน
 const chatCooldown = new Set();
 
 const client = new Client({
@@ -126,7 +127,7 @@ async function runGiveaway(msgId, channel) {
 }
 
 // ==========================================
-// 4. EVENTS & COMMANDS
+// 4. EVENTS & COMMANDS REGISTRATION
 // ==========================================
 client.on('ready', async () => {
     console.log(`💖 ปายพร้อมดูแลซีม่อนแล้วในชื่อ ${client.user.tag}`);
@@ -136,12 +137,24 @@ client.on('ready', async () => {
         { name: 'announce', description: 'ส่งประกาศประกาศ', options: [{name:'channel',type:7,required:true,description:'ช่อง'},{name:'title',type:3,required:true,description:'หัวข้อ'},{name:'message',type:3,required:true,description:'เนื้อหา'},{name:'image',type:3,description:'Link รูป'},{name:'color',type:3,description:'โค้ดสี'}] },
         { name: 'setup-level', description: 'ตั้งค่ายศเลเวล', options: [10,20,40,60,80,100].map(v => ({name:`lv${v}`,type:8,required:true,description:`ยศเลเวล ${v}`})) },
         { name: 'level-panel', description: 'สร้างหน้าเช็คเลเวล' },
-        { name: 'addbot-status', description: 'เพิ่มบอทเช็คสถานะ', options: [{name:'bot',type:6,required:true,description:'บอท'}] }
+        { name: 'addbot-status', description: 'เพิ่มบอทเช็คสถานะ', options: [{name:'bot',type:6,required:true,description:'บอท'}] },
+        { 
+            name: 'setup-verify', 
+            description: 'สร้างระบบยืนยันตัวตน (รับยศและเพศอัตโนมัติ)', 
+            options: [
+                { name: 'member_role', type: 8, required: true, description: 'ยศสำหรับสมาชิกเมื่อยืนยันสำเร็จ' },
+                { name: 'male_role', type: 8, required: true, description: 'ยศสำหรับผู้ชาย' },
+                { name: 'female_role', type: 8, required: true, description: 'ยศสำหรับผู้หญิง' }
+            ] 
+        }
     ];
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     await rest.put(Routes.applicationCommands(client.user.id), { body: cmds });
 });
 
+// ==========================================
+// 5. EVENT HANDLERS (XP & INTERACTIONS)
+// ==========================================
 // ระบบ XP จากแชท
 client.on('messageCreate', async (m) => {
     if (m.author.bot || !m.guild || chatCooldown.has(m.author.id)) return;
@@ -162,9 +175,32 @@ setInterval(() => {
 }, 300000);
 
 client.on('interactionCreate', async (i) => {
+    // --- จัดการคำสั่ง (Slash Commands) ---
     if (i.isChatInputCommand()) {
         if (i.user.id !== SIMON_ID) return i.reply({ content: 'เฉพาะซีม่อนเท่านั้นนะคะ!', ephemeral: true });
 
+        // --- สร้างหน้ารับยศยืนยันตัวตน ---
+        if (i.commandName === 'setup-verify') {
+            verifyRoles.member = i.options.getRole('member_role').id;
+            verifyRoles.male = i.options.getRole('male_role').id;
+            verifyRoles.female = i.options.getRole('female_role').id;
+
+            const emb = new EmbedBuilder()
+                .setTitle('🛡️ ระบบยืนยันตัวตน (Verification)')
+                .setDescription('✨ **ยินดีต้อนรับสมาชิกใหม่ทุกท่านนะคะ!** ✨\n\nเพื่อความปลอดภัยและทำความรู้จักกัน\nรบกวนสมาชิกกดปุ่ม **"✅ ยืนยันตัวตน"** ด้านล่าง\nเพื่อกรอกข้อมูลและรับยศเข้าสู่เซิร์ฟเวอร์แบบเต็มรูปแบบค่ะ 💖\n\n📝 **สิ่งที่ต้องเตรียมกรอก:**\n> 👤 ชื่อเล่นของคุณ\n> 🎂 อายุ\n> ⚧️ เพศ (พิมพ์ ชาย หรือ หญิง)')
+                .setColor('#FF69B4')
+                .setThumbnail(i.guild.iconURL())
+                .setFooter({ text: 'Zemon Źx Bot • ดูแลระบบปลอดภัย' });
+
+            const btn = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('verify_btn').setLabel('ยืนยันตัวตน').setEmoji('✅').setStyle(ButtonStyle.Success)
+            );
+
+            await i.reply({ content: '✅ บันทึกยศและสร้างหน้ายืนยันตัวตนเรียบร้อยแล้วค่ะ!', ephemeral: true });
+            await i.channel.send({ embeds: [emb], components: [btn] });
+        }
+
+        // --- ระบบที่มีอยู่เดิม ---
         if (i.commandName === 'setup-ticket') {
             const emb = new EmbedBuilder().setTitle('🎫 ศูนย์ช่วยเหลือสมาชิก').setDescription('หากพบปัญหาหรือต้องการสอบถาม กดปุ่มด้านล่างได้เลยค่ะ').setColor('#FFB6C1');
             const btn = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('tk_open').setLabel('เปิด Ticket').setStyle(ButtonStyle.Success).setEmoji('📩'));
@@ -210,7 +246,24 @@ client.on('interactionCreate', async (i) => {
         }
     }
 
+    // --- จัดการปุ่มกด (Buttons) ---
     if (i.isButton()) {
+        // ปุ่มยืนยันตัวตน (เด้ง Modal)
+        if (i.customId === 'verify_btn') {
+            const modal = new ModalBuilder().setCustomId('verify_modal').setTitle('📝 ข้อมูลการยืนยันตัวตน');
+            
+            const nicknameInput = new TextInputBuilder().setCustomId('v_name').setLabel('ชื่อเล่นของคุณคืออะไร?').setPlaceholder('พิมพ์แค่ชื่อเล่น เช่น ซีม่อน').setStyle(TextInputStyle.Short).setRequired(true);
+            const ageInput = new TextInputBuilder().setCustomId('v_age').setLabel('อายุเท่าไหร่คะ?').setPlaceholder('พิมพ์ตัวเลข เช่น 18').setStyle(TextInputStyle.Short).setRequired(true);
+            const genderInput = new TextInputBuilder().setCustomId('v_gender').setLabel('เพศอะไรคะ? (ชาย / หญิง)').setPlaceholder('พิมพ์ว่า ชาย หรือ หญิง').setStyle(TextInputStyle.Short).setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(nicknameInput),
+                new ActionRowBuilder().addComponents(ageInput),
+                new ActionRowBuilder().addComponents(genderInput)
+            );
+            await i.showModal(modal);
+        }
+
         if (i.customId === 'lv_check') {
             const d = userLevels.get(i.user.id) || { xp: 0, level: 1 };
             const next = getXpNeeded(d.level); const pct = Math.floor((d.xp/next)*100);
@@ -242,6 +295,45 @@ client.on('interactionCreate', async (i) => {
             d.users.push(i.user.id);
             if (!d.active) runGiveaway(i.message.id, i.channel);
             await i.reply({ content: '🎉 เข้าร่วมสำเร็จ! ขอให้โชคดีนะคะ', ephemeral: true });
+        }
+    }
+
+    // --- จัดการส่งฟอร์ม Modal ---
+    if (i.isModalSubmit()) {
+        if (i.customId === 'verify_modal') {
+            const nickname = i.fields.getTextInputValue('v_name').trim();
+            const age = i.fields.getTextInputValue('v_age').trim();
+            const gender = i.fields.getTextInputValue('v_gender').trim();
+
+            if (!verifyRoles.member) return i.reply({ content: '⚠️ ซีม่อนยังไม่ได้ตั้งค่ายศยืนยันตัวตนเลยค่ะ ให้ซีม่อนพิมพ์ /setup-verify ก่อนน้า', ephemeral: true });
+
+            try {
+                const member = i.member;
+                // ให้ยศสมาชิกหลัก
+                await member.roles.add(verifyRoles.member);
+
+                // เช็คเพศแล้วให้ยศเพิ่ม
+                let assignedText = '';
+                if (gender === 'ชาย' || gender.toLowerCase() === 'male' || gender === 'ผู้ชาย') {
+                    if (verifyRoles.male) await member.roles.add(verifyRoles.male);
+                    assignedText = 'และมอบ **ยศผู้ชาย 👨** ';
+                } else if (gender === 'หญิง' || gender.toLowerCase() === 'female' || gender === 'ผู้หญิง') {
+                    if (verifyRoles.female) await member.roles.add(verifyRoles.female);
+                    assignedText = 'และมอบ **ยศผู้หญิง 👩** ';
+                }
+
+                // แอบเปลี่ยนชื่อในเซิร์ฟเวอร์ให้เป็น [อายุ] ชื่อเล่น
+                await member.setNickname(`[${age}] ${nickname}`).catch(() => null);
+
+                await i.reply({ 
+                    content: `🎉 ยินดีต้อนรับคุณ **${nickname}** (อายุ ${age}) เข้าสู่เซิร์ฟเวอร์ค่ะ!\nปายได้มอบยศสมาชิก ${assignedText}ให้เรียบร้อยแล้วน้าา 💖 ขอให้สนุกนะคะ!`, 
+                    ephemeral: true 
+                });
+
+            } catch (error) {
+                console.error(error);
+                await i.reply({ content: '❌ ปายไม่สามารถมอบยศหรือเปลี่ยนชื่อให้ได้ค่ะ ฝากแจ้งซีม่อนให้เลื่อนยศบอทขึ้นหน่อยน้า 🥺', ephemeral: true });
+            }
         }
     }
 });
